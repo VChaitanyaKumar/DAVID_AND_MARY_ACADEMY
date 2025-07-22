@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 1. Splash Screen
 Purpose: Initial screen that appears when the app is launched.
 
@@ -152,3 +153,6 @@ Home Page
 Timetable Tasks Notes Exams Reminders Profile
    ↓        ↓     ↓      ↓
 Add Class  Add Task Add Note Add Exam
+=======
+# DAVID_AND_MARY_ACADEMY
+>>>>>>> 58be3ed26782597d944acfae90fe2d2fc6deba99
