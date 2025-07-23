@@ -1180,19 +1180,19 @@ export default function TimetableScreen() {
             <Ionicons name="arrow-back" size={24} color="#374151" />
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity style={styles.backButton} onPress={handleBackToLevels}>
-            <Ionicons name="arrow-back" size={24} color="#374151" />
-          </TouchableOpacity>
-        )}
+            <TouchableOpacity style={styles.backButton} onPress={handleBackToLevels}>
+          <Ionicons name="arrow-back" size={24} color="#374151" />
+        </TouchableOpacity>
+          )}
         <View style={styles.headerTitleWrapper}>
           <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
-            {showLevels ? 'Timetable' : selectedLevel}
-          </Text>
+          {showLevels ? 'Timetable' : selectedLevel}
+        </Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.settingsButton}>
-            <Ionicons name="settings" size={24} color="#374151" />
-          </TouchableOpacity>
+        <TouchableOpacity style={styles.settingsButton}>
+          <Ionicons name="settings" size={24} color="#374151" />
+        </TouchableOpacity>
         </View>
       </View>
 

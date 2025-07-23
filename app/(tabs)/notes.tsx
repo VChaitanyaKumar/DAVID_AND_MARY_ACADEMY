@@ -335,9 +335,9 @@ export default function NotesScreen() {
           </TouchableOpacity>
         ) : (
           <TouchableOpacity style={styles.backButton} onPress={() => setSelectedLevel(null)}>
-            <Ionicons name="arrow-back" size={24} color="#374151" />
-          </TouchableOpacity>
-        )}
+              <Ionicons name="arrow-back" size={24} color="#374151" />
+            </TouchableOpacity>
+          )}
         <View style={styles.headerTitleWrapper}>
           <Text style={styles.headerTitle}>Notes</Text>
         </View>

@@ -1,7 +1,9 @@
 import { Stack } from 'expo-router';
-import React from 'react';
 import { StatusBar } from "expo-status-bar";
+import React from 'react';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
+
+// Removed Supabase client creation from here
 
 function LayoutWithTheme() {
   const { theme } = useTheme();

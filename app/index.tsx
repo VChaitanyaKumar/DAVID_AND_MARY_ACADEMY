@@ -1,7 +1,7 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Image } from 'react-native';
-import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import React from 'react';
+import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 // Import the school logo
 const schoolLogo = require('../assets/images/david-and-mary-logo.png');
@@ -10,7 +10,7 @@ const { width, height } = Dimensions.get('window');
 
 export default function SplashScreen() {
   const handleNext = () => {
-    router.push('/(tabs)/home');
+    router.push('/sign-in');
   };
 
   return (
@@ -51,7 +51,6 @@ export default function SplashScreen() {
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -138,3 +137,4 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
 });
+
