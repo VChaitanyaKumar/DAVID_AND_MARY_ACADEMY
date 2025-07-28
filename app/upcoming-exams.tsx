@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  StyleSheet, 
-  ScrollView, 
-  SafeAreaView, 
-  StatusBar
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import React, { useState } from 'react';
+import {
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
+} from 'react-native';
 
 const educationalLevels = ['Play Group', 'Pre KG', 'Junior KG', 'Senior KG'];
 
@@ -174,9 +174,11 @@ export default function UpcomingExamsScreen() {
         </ScrollView>
       )}
       {/* Floating Action Button */}
-      <TouchableOpacity style={styles.fab} onPress={handleAddExam}>
-        <Ionicons name="add" size={24} color="white" />
-      </TouchableOpacity>
+      {selectedLevel && (
+        <TouchableOpacity style={styles.fab} onPress={() => router.push({ pathname: '/add-exam' as any, params: { educationalLevel: selectedLevel } })}>
+          <Ionicons name="add" size={24} color="white" />
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 }

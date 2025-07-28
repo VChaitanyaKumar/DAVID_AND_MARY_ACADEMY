@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from "expo-status-bar";
 import React from 'react';
+import { AttendanceProvider } from './attendance-context';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 
 // Removed Supabase client creation from here
@@ -27,7 +28,9 @@ function LayoutWithTheme() {
 export default function RootLayout() {
   return (
     <ThemeProvider>
-      <LayoutWithTheme />
+      <AttendanceProvider>
+        <LayoutWithTheme />
+      </AttendanceProvider>
     </ThemeProvider>
   );
 }

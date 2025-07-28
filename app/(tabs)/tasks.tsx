@@ -1,8 +1,8 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView, StatusBar, Alert, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useRouter, useFocusEffect } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { Alert, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 function TaskDetails({ task, onBack }: { task: any, onBack: () => void }) {
   const [text, setText] = React.useState('');
@@ -489,6 +489,10 @@ export default function TasksScreen() {
             </View>
           )}
         </ScrollView>
+        {/* Floating Action Button for class task screen */}
+        <TouchableOpacity style={styles.fab} onPress={() => router.push({ pathname: '/add-task' as any, params: { educationalLevel: selectedClass } })}>
+          <Ionicons name="add" size={24} color="white" />
+        </TouchableOpacity>
       </SafeAreaView>
     );
   }
@@ -554,9 +558,6 @@ export default function TasksScreen() {
                 })}
       </ScrollView>
       {/* Floating Action Button */}
-      <TouchableOpacity style={styles.fab} onPress={() => router.push('/add-task' as any)}>
-        <Ionicons name="add" size={24} color="white" />
-      </TouchableOpacity>
     </SafeAreaView>
   );
 }

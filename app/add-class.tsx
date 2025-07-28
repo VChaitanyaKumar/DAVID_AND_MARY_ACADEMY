@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView, StatusBar, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { Alert, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { supabase } from './supabaseClient';
 
 export default function AddClassScreen() {
   const [subject, setSubject] = useState('');
@@ -11,6 +12,7 @@ export default function AddClassScreen() {
   const [teacherName, setTeacherName] = useState('');
   const [selectedColor, setSelectedColor] = useState('#3b82f6');
   const [educationalLevel, setEducationalLevel] = useState('Play Group');
+  const [isLoading, setIsLoading] = useState(false);
 
   // Get educational level from route params
   const params = useLocalSearchParams();
@@ -30,23 +32,62 @@ export default function AddClassScreen() {
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const educationalLevels = ['Play Group', 'Pre KG', 'Junior KG', 'Senior KG'];
 
-  const handleSaveClass = () => {
+  const handleSaveClass = async () => {
     // Validate required fields
     if (!subject || !day || !startTime || !endTime) {
-      alert('Please fill in all required fields');
+      Alert.alert('Validation Error', 'Please fill in all required fields');
       return;
     }
     
-    console.log('Saving class:', { 
-      educationalLevel, 
-      subject, 
-      day, 
-      startTime, 
-      endTime, 
-      teacherName, 
-      selectedColor 
-    });
-    router.back();
+    setIsLoading(true);
+    
+    try {
+      // Insert new class into Supabase
+      const { data, error } = await supabase
+        .from('classes')
+        .insert([
+          {
+            subject,
+            day,
+            start_time: startTime,
+            end_time: endTime,
+            teacher_name: teacherName || null,
+            color: selectedColor,
+            level: educationalLevel
+          }
+        ])
+        .select();
+
+      if (error) {
+        console.error('Error saving class:', error);
+        Alert.alert('Error', 'Failed to save class. Please try again.');
+        return;
+      }
+
+      // Show success confirmation
+      Alert.alert(
+        'Success', 
+        'Class saved successfully!', 
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              // Navigate back to Timetable with refresh flag
+              router.push({
+                pathname: '/(tabs)/timetable' as any,
+                params: { refresh: 'true' }
+              });
+            }
+          }
+        ]
+      );
+      
+    } catch (error) {
+      console.error('Error saving class:', error);
+      Alert.alert('Error', 'Failed to save class. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleCancel = () => {
@@ -74,21 +115,16 @@ export default function AddClassScreen() {
             <Text style={styles.fieldLabel}>Educational Level</Text>
             <View style={styles.levelSelector}>
               {educationalLevels.map((level) => (
-                <TouchableOpacity
-                  key={level}
-                  style={[
-                    styles.levelButton,
-                    educationalLevel === level && styles.selectedLevelButton
-                  ]}
-                  onPress={() => setEducationalLevel(level)}
-                >
-                  <Text style={[
-                    styles.levelButtonText,
-                    educationalLevel === level && styles.selectedLevelButtonText
-                  ]}>
-                    {level}
-                  </Text>
-                </TouchableOpacity>
+                routeEducationalLevel === level ? (
+                  <View
+                    key={level}
+                    style={[styles.levelButton, styles.selectedLevelButton]}
+                  >
+                    <Text style={[styles.levelButtonText, styles.selectedLevelButtonText]}>
+                      {level}
+                    </Text>
+                  </View>
+                ) : null
               ))}
             </View>
           </View>
@@ -186,9 +222,15 @@ export default function AddClassScreen() {
 
         {/* Action Buttons */}
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.saveButton} onPress={handleSaveClass}>
+          <TouchableOpacity 
+            style={[styles.saveButton, isLoading && styles.saveButtonDisabled]} 
+            onPress={handleSaveClass}
+            disabled={isLoading}
+          >
             <Ionicons name="save" size={20} color="white" />
-            <Text style={styles.saveButtonText}>Save Class</Text>
+            <Text style={styles.saveButtonText}>
+              {isLoading ? 'Saving...' : 'Save Class'}
+            </Text>
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
@@ -371,12 +413,14 @@ const styles = StyleSheet.create({
     marginBottom: 100,
   },
   saveButton: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 12,
-    paddingVertical: 16,
+    backgroundColor: '#1e3a8a',
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -391,6 +435,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  saveButtonDisabled: {
+    opacity: 0.7,
   },
   cancelButton: {
     backgroundColor: 'white',

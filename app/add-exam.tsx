@@ -1,18 +1,18 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  StyleSheet, 
-  ScrollView, 
-  SafeAreaView, 
-  StatusBar,
-  TextInput,
-  Platform
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { router, useLocalSearchParams } from 'expo-router';
+import React, { useState } from 'react';
+import {
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
+} from 'react-native';
 
 export default function AddExamScreen() {
   const [subject, setSubject] = useState('');
@@ -24,6 +24,9 @@ export default function AddExamScreen() {
   const [notes, setNotes] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+
+  const params = useLocalSearchParams();
+  const routeEducationalLevel = params?.educationalLevel as string || 'Play Group';
 
   const handleSaveExam = () => {
     // TODO: Save exam logic
@@ -89,6 +92,21 @@ export default function AddExamScreen() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Educational Level */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Educational Level</Text>
+          <View style={styles.levelSelector}>
+            <View
+              key={routeEducationalLevel}
+              style={[styles.levelButton, styles.selectedLevelButton]}
+            >
+              <Text style={[styles.levelButtonText, styles.selectedLevelButtonText]}>
+                {routeEducationalLevel}
+              </Text>
+            </View>
+          </View>
+        </View>
+
         {/* Subject */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Subject</Text>
@@ -357,6 +375,28 @@ const styles = StyleSheet.create({
   saveExamButtonText: {
     fontSize: 16,
     fontWeight: '600',
+    color: 'white',
+  },
+  levelSelector: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    padding: 4,
+  },
+  levelButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+  },
+  levelButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  selectedLevelButton: {
+    backgroundColor: '#3b82f6',
+  },
+  selectedLevelButtonText: {
     color: 'white',
   },
 }); 

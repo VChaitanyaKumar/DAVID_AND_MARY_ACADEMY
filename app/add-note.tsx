@@ -1,21 +1,21 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  StyleSheet, 
-  ScrollView, 
-  SafeAreaView, 
-  StatusBar,
-  TextInput,
-  Platform
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
+import { router, useLocalSearchParams } from 'expo-router';
+import React, { useState } from 'react';
+import {
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
+} from 'react-native';
 
 export default function AddNoteScreen() {
-  const [educationalLevel, setEducationalLevel] = useState('Play Group');
+  const params = useLocalSearchParams();
+  const routeEducationalLevel = params?.educationalLevel as string || 'Play Group';
   const [subject, setSubject] = useState('');
   const [title, setTitle] = useState('');
   const [noteText, setNoteText] = useState('');
@@ -26,7 +26,7 @@ export default function AddNoteScreen() {
   const handleSaveNote = () => {
     // TODO: Save note logic
     console.log('Saving note:', { 
-      educationalLevel, 
+      educationalLevel: routeEducationalLevel, 
       subject, 
       title, 
       noteText, 
@@ -74,23 +74,14 @@ export default function AddNoteScreen() {
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Educational Level</Text>
           <View style={styles.levelSelector}>
-            {educationalLevels.map((level) => (
-              <TouchableOpacity
-                key={level}
-                style={[
-                  styles.levelButton,
-                  educationalLevel === level && styles.selectedLevelButton
-                ]}
-                onPress={() => setEducationalLevel(level)}
-              >
-                <Text style={[
-                  styles.levelButtonText,
-                  educationalLevel === level && styles.selectedLevelButtonText
-                ]}>
-                  {level}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            <View
+              key={routeEducationalLevel}
+              style={[styles.levelButton, styles.selectedLevelButton]}
+            >
+              <Text style={[styles.levelButtonText, styles.selectedLevelButtonText]}>
+                {routeEducationalLevel}
+              </Text>
+            </View>
           </View>
         </View>
 

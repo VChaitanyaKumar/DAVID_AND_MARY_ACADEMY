@@ -1,20 +1,55 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import React, { useState } from 'react';
+import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { supabase } from '../supabaseClient';
 
 export default function TimetableScreen() {
   const [selectedDay, setSelectedDay] = useState('Mon');
   const [selectedLevel, setSelectedLevel] = useState('Play Group');
   const [showLevels, setShowLevels] = useState(true);
+  const [classes, setClasses] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const params = useLocalSearchParams();
+  const refreshFlag = params?.refresh as string;
 
   useFocusEffect(
     React.useCallback(() => {
       setShowLevels(true);
       setSelectedDay('Mon');
       setSelectedLevel('Play Group');
-    }, [])
+      
+      // Fetch classes from Supabase when screen is focused or refresh is requested
+      if (refreshFlag === 'true' || !showLevels) {
+        fetchClasses();
+      }
+    }, [refreshFlag, showLevels])
   );
+
+  const fetchClasses = async () => {
+    setIsLoading(true);
+    try {
+      const dayName = getDayName(selectedDay);
+      const { data, error } = await supabase
+        .from('classes')
+        .select('*')
+        .eq('day', dayName)
+        .eq('level', selectedLevel)
+        .order('start_time', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching classes:', error);
+        return;
+      }
+
+      setClasses(data || []);
+    } catch (error) {
+      console.error('Error fetching classes:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const educationalLevels = ['Play Group', 'Pre KG', 'Junior KG', 'Senior KG'];
@@ -28,12 +63,24 @@ export default function TimetableScreen() {
     };
     return classColorMap[className] || '#6b7280';
   };
-  
+
+  const getDayName = (day: string) => {
+    const dayNames = {
+      'Mon': 'Monday',
+      'Tue': 'Tuesday', 
+      'Wed': 'Wednesday',
+      'Thu': 'Thursday',
+      'Fri': 'Friday',
+      'Sat': 'Saturday'
+    };
+    return dayNames[day as keyof typeof dayNames] || day;
+  };
+
   const weeklySchedule = {
     'Play Group': {
       Mon: [
-    {
-      id: 1,
+        {
+          id: 1,
           subject: 'Story Time',
           time: '09:00 - 09:30',
           location: 'Story Corner',
@@ -593,14 +640,14 @@ export default function TimetableScreen() {
         },
         {
           id: 60,
-      subject: 'Mathematics',
+          subject: 'Mathematics',
           time: '09:30 - 10:00',
           location: 'Math Corner',
           tag: 'Math',
-      tagColor: '#3b82f6',
-      backgroundColor: '#eff6ff',
-    },
-    {
+          tagColor: '#3b82f6',
+          backgroundColor: '#eff6ff',
+        },
+        {
           id: 61,
           subject: 'Snack Time',
           time: '10:00 - 10:15',
@@ -643,20 +690,20 @@ export default function TimetableScreen() {
           subject: 'Environmental Studies',
           time: '09:30 - 10:00',
           location: 'Science Corner',
-      tag: 'Science',
-      tagColor: '#22c55e',
-      backgroundColor: '#f0fdf4',
-    },
-    {
+          tag: 'Science',
+          tagColor: '#22c55e',
+          backgroundColor: '#f0fdf4',
+        },
+        {
           id: 66,
           subject: 'Snack Time',
           time: '10:00 - 10:15',
           location: 'Dining Area',
-      tag: 'Break',
-      tagColor: '#f59e0b',
-      backgroundColor: '#fffbeb',
-    },
-    {
+          tag: 'Break',
+          tagColor: '#f59e0b',
+          backgroundColor: '#fffbeb',
+        },
+        {
           id: 67,
           subject: 'Outdoor Activities',
           time: '10:15 - 10:45',
@@ -670,7 +717,7 @@ export default function TimetableScreen() {
           subject: 'Drawing & Painting',
           time: '10:45 - 11:15',
           location: 'Art Corner',
-      tag: 'Creative',
+          tag: 'Creative',
           tagColor: '#ec4899',
           backgroundColor: '#fdf2f8',
         },
@@ -682,9 +729,9 @@ export default function TimetableScreen() {
           time: '09:00 - 09:30',
           location: 'Learning Corner',
           tag: 'Language',
-      tagColor: '#8b5cf6',
-      backgroundColor: '#faf5ff',
-    },
+          tagColor: '#8b5cf6',
+          backgroundColor: '#faf5ff',
+        },
         {
           id: 70,
           subject: 'Number Work',
@@ -1132,24 +1179,8 @@ export default function TimetableScreen() {
     },
   };
 
-  const getDayName = (day: string) => {
-    const dayNames = {
-      'Mon': 'Monday',
-      'Tue': 'Tuesday', 
-      'Wed': 'Wednesday',
-      'Thu': 'Thursday',
-      'Fri': 'Friday',
-      'Sat': 'Saturday'
-    };
-    return dayNames[day as keyof typeof dayNames] || day;
-  };
-
   const getCurrentClasses = () => {
-    const levelSchedule = weeklySchedule[selectedLevel as keyof typeof weeklySchedule];
-    if (levelSchedule && levelSchedule[selectedDay as keyof typeof levelSchedule]) {
-      return levelSchedule[selectedDay as keyof typeof levelSchedule];
-    }
-    return [];
+    return classes;
   };
 
   const handleAddClass = () => {
@@ -1163,10 +1194,18 @@ export default function TimetableScreen() {
   const handleLevelSelect = (level: string) => {
     setSelectedLevel(level);
     setShowLevels(false);
+    // Fetch classes for the selected level
+    setTimeout(() => fetchClasses(), 100);
   };
 
   const handleBackToLevels = () => {
     setShowLevels(true);
+  };
+
+  const handleDaySelect = (day: string) => {
+    setSelectedDay(day);
+    // Fetch classes for the selected day
+    setTimeout(() => fetchClasses(), 100);
   };
 
   return (
@@ -1232,7 +1271,7 @@ export default function TimetableScreen() {
               styles.dayButton,
               selectedDay === day && styles.selectedDayButton
             ]}
-            onPress={() => setSelectedDay(day)}
+            onPress={() => handleDaySelect(day)}
           >
             <Text style={[
               styles.dayText,
@@ -1247,40 +1286,64 @@ export default function TimetableScreen() {
       {/* Date and Info */}
       <View style={styles.dateSection}>
             <Text style={styles.dateTitle}>{getDayName(selectedDay)}, March 15</Text>
-            <Text style={styles.classCount}>{getCurrentClasses().length} classes today</Text>
+            <Text style={styles.classCount}>{classes.length} classes today</Text>
       </View>
 
       {/* Class Cards */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            {getCurrentClasses().map((classItem) => (
-          <View key={classItem.id} style={[styles.classCard, { backgroundColor: classItem.backgroundColor }]}>
-            <View style={styles.classHeader}>
-              <Text style={styles.subjectText}>{classItem.subject}</Text>
-              <View style={[styles.tag, { backgroundColor: classItem.tagColor }]}>
-                <Text style={styles.tagText}>{classItem.tag}</Text>
-              </View>
-            </View>
-            
-            <View style={styles.classDetails}>
-              <View style={styles.detailRow}>
-                <Ionicons name="time" size={16} color="#6b7280" />
-                <Text style={styles.detailText}>{classItem.time}</Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Ionicons name="location" size={16} color="#6b7280" />
-                <Text style={styles.detailText}>{classItem.location}</Text>
-              </View>
-            </View>
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>Loading classes...</Text>
           </View>
-        ))}
+        ) : getCurrentClasses().length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="calendar-outline" size={48} color="#9ca3af" />
+            <Text style={styles.emptyTitle}>No classes scheduled</Text>
+            <Text style={styles.emptySubtitle}>Add a class to get started</Text>
+          </View>
+        ) : (
+          getCurrentClasses().map((classItem) => (
+            <View 
+              key={classItem.id} 
+              style={[
+                styles.classCard, 
+                { backgroundColor: classItem.color ? `${classItem.color}15` : '#f3f4f6' }
+              ]}
+            >
+              <View style={styles.classHeader}>
+                <Text style={styles.subjectText}>{classItem.subject}</Text>
+                <View style={[styles.tag, { backgroundColor: classItem.color || '#6b7280' }]}>
+                  <Text style={styles.tagText}>Class</Text>
+                </View>
+              </View>
+              
+              <View style={styles.classDetails}>
+                <View style={styles.detailRow}>
+                  <Ionicons name="time" size={16} color="#6b7280" />
+                  <Text style={styles.detailText}>
+                    {classItem.start_time} - {classItem.end_time}
+                  </Text>
+                </View>
+                {classItem.teacher_name && (
+                  <View style={styles.detailRow}>
+                    <Ionicons name="person" size={16} color="#6b7280" />
+                    <Text style={styles.detailText}>{classItem.teacher_name}</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          ))
+        )}
       </ScrollView>
         </>
       )}
 
       {/* Floating Action Button */}
-      <TouchableOpacity style={styles.fab} onPress={handleAddClass}>
-        <Ionicons name="add" size={24} color="white" />
-      </TouchableOpacity>
+      {!showLevels && (
+        <TouchableOpacity style={styles.fab} onPress={handleAddClass}>
+          <Ionicons name="add" size={24} color="white" />
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 }
@@ -1531,5 +1594,34 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#6b7280',
+    marginTop: 12,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#374151',
+    marginTop: 16,
+    marginBottom: 4,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
   },
 }); 

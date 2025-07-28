@@ -1,15 +1,23 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Platform, Alert } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { Alert, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 const NAVY = '#001F54';
 const LEVELS = ['Play Group', 'Pre KG', 'Junior KG', 'Senior KG'];
 
 export default function AddTaskPage() {
   const router = useRouter();
-  const [educationalLevel, setEducationalLevel] = useState(LEVELS[0]);
+  const params = useLocalSearchParams();
+  const routeEducationalLevel = params?.educationalLevel as string || LEVELS[0];
+
+  React.useEffect(() => {
+    if (routeEducationalLevel) {
+      // setEducationalLevel(routeEducationalLevel); // This line is removed
+    }
+  }, [routeEducationalLevel]);
+
   const [subject, setSubject] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -44,25 +52,14 @@ export default function AddTaskPage() {
         <View style={styles.formCard}>
           <Text style={styles.label}>Educational Level</Text>
           <View style={styles.levelSelector}>
-            {LEVELS.map(level => (
-              <TouchableOpacity
-                key={level}
-                style={[
-                  styles.levelButton,
-                  educationalLevel === level && styles.selectedLevelButton
-                ]}
-                onPress={() => setEducationalLevel(level)}
-              >
-                <Text
-                  style={[
-                    styles.levelButtonText,
-                    educationalLevel === level && styles.selectedLevelButtonText
-                  ]}
-                >
-                  {level}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            <View
+              key={routeEducationalLevel}
+              style={[styles.levelButton, styles.selectedLevelButton]}
+            >
+              <Text style={[styles.levelButtonText, styles.selectedLevelButtonText]}>
+                {routeEducationalLevel}
+              </Text>
+            </View>
           </View>
           <Text style={styles.label}>Subject</Text>
           <TextInput
