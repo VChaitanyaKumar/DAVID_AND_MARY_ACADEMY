@@ -91,7 +91,7 @@ export default function AddClassScreen() {
   };
 
   const handleCancel = () => {
-    router.back();
+    router.push('/(tabs)/timetable');
   };
 
   return (
@@ -143,12 +143,23 @@ export default function AddClassScreen() {
           {/* Day Field */}
           <View style={styles.fieldContainer}>
             <Text style={styles.fieldLabel}>Day</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="Select day"
-              value={day}
-              onChangeText={setDay}
-            />
+            <View style={styles.daySelectorRow}>
+              {days.map((d) => (
+                <TouchableOpacity
+                  key={d}
+                  style={[
+                    styles.dayButton,
+                    day === d && styles.selectedDayButton
+                  ]}
+                  onPress={() => setDay(d)}
+                >
+                  <Text style={[
+                    styles.dayButtonText,
+                    day === d && styles.selectedDayButtonText
+                  ]}>{d.slice(0, 3)}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
 
           {/* Time Fields */}
@@ -496,5 +507,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  daySelectorRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  dayButton: {
+    flex: 1,
+    marginHorizontal: 2,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#f3f4f6',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  selectedDayButton: {
+    backgroundColor: '#2563eb',
+    borderColor: '#2563eb',
+  },
+  dayButtonText: {
+    color: '#374151',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  selectedDayButtonText: {
+    color: 'white',
   },
 }); 

@@ -14,35 +14,16 @@ export default function TimetableScreen() {
   const params = useLocalSearchParams();
   const refreshFlag = params?.refresh as string;
 
-  useFocusEffect(
-    React.useCallback(() => {
-      setShowLevels(true);
-      setSelectedDay('Mon');
-      setSelectedLevel('Play Group');
-      
-      // Fetch classes from Supabase when screen is focused or refresh is requested
-      if (refreshFlag === 'true' || !showLevels) {
-        fetchClasses();
-      }
-    }, [refreshFlag, showLevels])
-  );
-
   const fetchClasses = async () => {
     setIsLoading(true);
     try {
-      const dayName = getDayName(selectedDay);
       const { data, error } = await supabase
         .from('classes')
         .select('*')
-        .eq('day', dayName)
+        .eq('day', getDayName(selectedDay))
         .eq('level', selectedLevel)
         .order('start_time', { ascending: true });
-
-      if (error) {
-        console.error('Error fetching classes:', error);
-        return;
-      }
-
+      if (error) throw error;
       setClasses(data || []);
     } catch (error) {
       console.error('Error fetching classes:', error);
@@ -50,6 +31,12 @@ export default function TimetableScreen() {
       setIsLoading(false);
     }
   };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchClasses();
+    }, [selectedDay, selectedLevel, refreshFlag])
+  );
 
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const educationalLevels = ['Play Group', 'Pre KG', 'Junior KG', 'Senior KG'];
@@ -76,1115 +63,7 @@ export default function TimetableScreen() {
     return dayNames[day as keyof typeof dayNames] || day;
   };
 
-  const weeklySchedule = {
-    'Play Group': {
-      Mon: [
-        {
-          id: 1,
-          subject: 'Story Time',
-          time: '09:00 - 09:30',
-          location: 'Story Corner',
-          tag: 'Language',
-          tagColor: '#8b5cf6',
-          backgroundColor: '#faf5ff',
-        },
-        {
-          id: 2,
-          subject: 'Play & Learn',
-          time: '09:30 - 10:00',
-          location: 'Play Area',
-          tag: 'Activity',
-          tagColor: '#22c55e',
-          backgroundColor: '#f0fdf4',
-        },
-        {
-          id: 3,
-          subject: 'Snack Time',
-          time: '10:00 - 10:15',
-          location: 'Dining Area',
-          tag: 'Break',
-          tagColor: '#f59e0b',
-          backgroundColor: '#fffbeb',
-        },
-        {
-          id: 4,
-          subject: 'Music & Movement',
-          time: '10:15 - 10:45',
-          location: 'Activity Room',
-          tag: 'Creative',
-          tagColor: '#ec4899',
-          backgroundColor: '#fdf2f8',
-        },
-        {
-          id: 5,
-          subject: 'Art & Craft',
-          time: '10:45 - 11:15',
-          location: 'Art Corner',
-          tag: 'Creative',
-          tagColor: '#ec4899',
-          backgroundColor: '#fdf2f8',
-        },
-      ],
-      Tue: [
-        {
-          id: 6,
-          subject: 'Rhymes & Songs',
-          time: '09:00 - 09:30',
-          location: 'Music Room',
-          tag: 'Language',
-          tagColor: '#8b5cf6',
-          backgroundColor: '#faf5ff',
-        },
-        {
-          id: 7,
-          subject: 'Building Blocks',
-          time: '09:30 - 10:00',
-          location: 'Play Area',
-          tag: 'Activity',
-          tagColor: '#22c55e',
-          backgroundColor: '#f0fdf4',
-        },
-        {
-          id: 8,
-          subject: 'Snack Time',
-          time: '10:00 - 10:15',
-          location: 'Dining Area',
-          tag: 'Break',
-          tagColor: '#f59e0b',
-          backgroundColor: '#fffbeb',
-        },
-        {
-          id: 9,
-          subject: 'Outdoor Play',
-          time: '10:15 - 10:45',
-          location: 'Garden',
-          tag: 'Physical',
-          tagColor: '#ef4444',
-          backgroundColor: '#fef2f2',
-        },
-        {
-          id: 10,
-          subject: 'Coloring Time',
-          time: '10:45 - 11:15',
-          location: 'Art Corner',
-          tag: 'Creative',
-          tagColor: '#ec4899',
-          backgroundColor: '#fdf2f8',
-        },
-      ],
-      Wed: [
-        {
-          id: 11,
-          subject: 'Picture Talk',
-          time: '09:00 - 09:30',
-          location: 'Story Corner',
-          tag: 'Language',
-          tagColor: '#8b5cf6',
-          backgroundColor: '#faf5ff',
-        },
-        {
-          id: 12,
-          subject: 'Puzzle Time',
-          time: '09:30 - 10:00',
-          location: 'Play Area',
-          tag: 'Activity',
-          tagColor: '#22c55e',
-          backgroundColor: '#f0fdf4',
-        },
-        {
-          id: 13,
-          subject: 'Snack Time',
-          time: '10:00 - 10:15',
-          location: 'Dining Area',
-          tag: 'Break',
-          tagColor: '#f59e0b',
-          backgroundColor: '#fffbeb',
-        },
-        {
-          id: 14,
-          subject: 'Dance & Movement',
-          time: '10:15 - 10:45',
-          location: 'Activity Room',
-          tag: 'Creative',
-          tagColor: '#ec4899',
-          backgroundColor: '#fdf2f8',
-        },
-        {
-          id: 15,
-          subject: 'Clay Modeling',
-          time: '10:45 - 11:15',
-          location: 'Art Corner',
-          tag: 'Creative',
-          tagColor: '#ec4899',
-          backgroundColor: '#fdf2f8',
-        },
-      ],
-      Thu: [
-        {
-          id: 16,
-          subject: 'Alphabet Fun',
-          time: '09:00 - 09:30',
-          location: 'Learning Corner',
-          tag: 'Language',
-          tagColor: '#8b5cf6',
-          backgroundColor: '#faf5ff',
-        },
-        {
-          id: 17,
-          subject: 'Toy Time',
-          time: '09:30 - 10:00',
-          location: 'Play Area',
-          tag: 'Activity',
-          tagColor: '#22c55e',
-          backgroundColor: '#f0fdf4',
-        },
-        {
-          id: 18,
-          subject: 'Snack Time',
-          time: '10:00 - 10:15',
-          location: 'Dining Area',
-          tag: 'Break',
-          tagColor: '#f59e0b',
-          backgroundColor: '#fffbeb',
-        },
-        {
-          id: 19,
-          subject: 'Indoor Games',
-          time: '10:15 - 10:45',
-          location: 'Activity Room',
-          tag: 'Physical',
-          tagColor: '#ef4444',
-          backgroundColor: '#fef2f2',
-        },
-        {
-          id: 20,
-          subject: 'Paper Craft',
-          time: '10:45 - 11:15',
-          location: 'Art Corner',
-          tag: 'Creative',
-          tagColor: '#ec4899',
-          backgroundColor: '#fdf2f8',
-        },
-      ],
-      Fri: [
-        {
-          id: 21,
-          subject: 'Number Fun',
-          time: '09:00 - 09:30',
-          location: 'Learning Corner',
-          tag: 'Math',
-          tagColor: '#3b82f6',
-          backgroundColor: '#eff6ff',
-        },
-        {
-          id: 22,
-          subject: 'Sand Play',
-          time: '09:30 - 10:00',
-          location: 'Sand Pit',
-          tag: 'Activity',
-          tagColor: '#22c55e',
-          backgroundColor: '#f0fdf4',
-        },
-        {
-          id: 23,
-          subject: 'Snack Time',
-          time: '10:00 - 10:15',
-          location: 'Dining Area',
-          tag: 'Break',
-          tagColor: '#f59e0b',
-          backgroundColor: '#fffbeb',
-        },
-        {
-          id: 24,
-          subject: 'Water Play',
-          time: '10:15 - 10:45',
-          location: 'Water Area',
-          tag: 'Activity',
-          tagColor: '#22c55e',
-          backgroundColor: '#f0fdf4',
-        },
-        {
-          id: 25,
-          subject: 'Drawing Time',
-          time: '10:45 - 11:15',
-          location: 'Art Corner',
-          tag: 'Creative',
-          tagColor: '#ec4899',
-          backgroundColor: '#fdf2f8',
-        },
-      ],
-      Sat: [
-        {
-          id: 26,
-          subject: 'Show & Tell',
-          time: '09:00 - 09:30',
-          location: 'Story Corner',
-          tag: 'Language',
-          tagColor: '#8b5cf6',
-          backgroundColor: '#faf5ff',
-        },
-        {
-          id: 27,
-          subject: 'Free Play',
-          time: '09:30 - 10:00',
-          location: 'Play Area',
-          tag: 'Activity',
-          tagColor: '#22c55e',
-          backgroundColor: '#f0fdf4',
-        },
-        {
-          id: 28,
-          subject: 'Snack Time',
-          time: '10:00 - 10:15',
-          location: 'Dining Area',
-          tag: 'Break',
-          tagColor: '#f59e0b',
-          backgroundColor: '#fffbeb',
-        },
-        {
-          id: 29,
-          subject: 'Rhythm & Beats',
-          time: '10:15 - 10:45',
-          location: 'Music Room',
-          tag: 'Creative',
-          tagColor: '#ec4899',
-          backgroundColor: '#fdf2f8',
-        },
-      ],
-    },
-    'Pre KG': {
-      Mon: [
-        {
-          id: 30,
-          subject: 'Phonics Introduction',
-          time: '09:00 - 09:30',
-          location: 'Learning Corner',
-          tag: 'Language',
-          tagColor: '#8b5cf6',
-          backgroundColor: '#faf5ff',
-        },
-        {
-          id: 31,
-          subject: 'Counting Numbers',
-          time: '09:30 - 10:00',
-          location: 'Math Corner',
-          tag: 'Math',
-          tagColor: '#3b82f6',
-          backgroundColor: '#eff6ff',
-        },
-        {
-          id: 32,
-          subject: 'Snack Time',
-          time: '10:00 - 10:15',
-          location: 'Dining Area',
-          tag: 'Break',
-          tagColor: '#f59e0b',
-          backgroundColor: '#fffbeb',
-        },
-        {
-          id: 33,
-          subject: 'Physical Activities',
-          time: '10:15 - 10:45',
-          location: 'Activity Room',
-          tag: 'Physical',
-          tagColor: '#ef4444',
-          backgroundColor: '#fef2f2',
-        },
-        {
-          id: 34,
-          subject: 'Creative Art',
-          time: '10:45 - 11:15',
-          location: 'Art Corner',
-          tag: 'Creative',
-          tagColor: '#ec4899',
-          backgroundColor: '#fdf2f8',
-        },
-      ],
-      Tue: [
-        {
-          id: 35,
-          subject: 'Story Reading',
-          time: '09:00 - 09:30',
-          location: 'Story Corner',
-          tag: 'Language',
-          tagColor: '#8b5cf6',
-          backgroundColor: '#faf5ff',
-        },
-        {
-          id: 36,
-          subject: 'Shape Recognition',
-          time: '09:30 - 10:00',
-          location: 'Math Corner',
-          tag: 'Math',
-          tagColor: '#3b82f6',
-          backgroundColor: '#eff6ff',
-        },
-        {
-          id: 37,
-          subject: 'Snack Time',
-          time: '10:00 - 10:15',
-          location: 'Dining Area',
-          tag: 'Break',
-          tagColor: '#f59e0b',
-          backgroundColor: '#fffbeb',
-        },
-        {
-          id: 38,
-          subject: 'Outdoor Games',
-          time: '10:15 - 10:45',
-          location: 'Garden',
-          tag: 'Physical',
-          tagColor: '#ef4444',
-          backgroundColor: '#fef2f2',
-        },
-        {
-          id: 39,
-          subject: 'Craft Work',
-          time: '10:45 - 11:15',
-          location: 'Art Corner',
-          tag: 'Creative',
-          tagColor: '#ec4899',
-          backgroundColor: '#fdf2f8',
-        },
-      ],
-      Wed: [
-        {
-          id: 40,
-          subject: 'Rhymes & Songs',
-          time: '09:00 - 09:30',
-          location: 'Music Room',
-          tag: 'Language',
-          tagColor: '#8b5cf6',
-          backgroundColor: '#faf5ff',
-        },
-        {
-          id: 41,
-          subject: 'Color Recognition',
-          time: '09:30 - 10:00',
-          location: 'Learning Corner',
-          tag: 'Activity',
-          tagColor: '#22c55e',
-          backgroundColor: '#f0fdf4',
-        },
-        {
-          id: 42,
-          subject: 'Snack Time',
-          time: '10:00 - 10:15',
-          location: 'Dining Area',
-          tag: 'Break',
-          tagColor: '#f59e0b',
-          backgroundColor: '#fffbeb',
-        },
-        {
-          id: 43,
-          subject: 'Dance Class',
-          time: '10:15 - 10:45',
-          location: 'Activity Room',
-          tag: 'Creative',
-          tagColor: '#ec4899',
-          backgroundColor: '#fdf2f8',
-        },
-        {
-          id: 44,
-          subject: 'Painting',
-          time: '10:45 - 11:15',
-          location: 'Art Corner',
-          tag: 'Creative',
-          tagColor: '#ec4899',
-          backgroundColor: '#fdf2f8',
-        },
-      ],
-      Thu: [
-        {
-          id: 45,
-          subject: 'Letter Writing',
-          time: '09:00 - 09:30',
-          location: 'Learning Corner',
-          tag: 'Language',
-          tagColor: '#8b5cf6',
-          backgroundColor: '#faf5ff',
-        },
-        {
-          id: 46,
-          subject: 'Number Writing',
-          time: '09:30 - 10:00',
-          location: 'Math Corner',
-          tag: 'Math',
-          tagColor: '#3b82f6',
-          backgroundColor: '#eff6ff',
-        },
-        {
-          id: 47,
-          subject: 'Snack Time',
-          time: '10:00 - 10:15',
-          location: 'Dining Area',
-          tag: 'Break',
-          tagColor: '#f59e0b',
-          backgroundColor: '#fffbeb',
-        },
-        {
-          id: 48,
-          subject: 'Indoor Sports',
-          time: '10:15 - 10:45',
-          location: 'Activity Room',
-          tag: 'Physical',
-          tagColor: '#ef4444',
-          backgroundColor: '#fef2f2',
-        },
-        {
-          id: 49,
-          subject: 'Clay Work',
-          time: '10:45 - 11:15',
-          location: 'Art Corner',
-          tag: 'Creative',
-          tagColor: '#ec4899',
-          backgroundColor: '#fdf2f8',
-        },
-      ],
-      Fri: [
-        {
-          id: 50,
-          subject: 'Word Building',
-          time: '09:00 - 09:30',
-          location: 'Learning Corner',
-          tag: 'Language',
-          tagColor: '#8b5cf6',
-          backgroundColor: '#faf5ff',
-        },
-        {
-          id: 51,
-          subject: 'Simple Addition',
-          time: '09:30 - 10:00',
-          location: 'Math Corner',
-          tag: 'Math',
-          tagColor: '#3b82f6',
-          backgroundColor: '#eff6ff',
-        },
-        {
-          id: 52,
-          subject: 'Snack Time',
-          time: '10:00 - 10:15',
-          location: 'Dining Area',
-          tag: 'Break',
-          tagColor: '#f59e0b',
-          backgroundColor: '#fffbeb',
-        },
-        {
-          id: 53,
-          subject: 'Yoga for Kids',
-          time: '10:15 - 10:45',
-          location: 'Activity Room',
-          tag: 'Physical',
-          tagColor: '#ef4444',
-          backgroundColor: '#fef2f2',
-        },
-        {
-          id: 54,
-          subject: 'Paper Craft',
-          time: '10:45 - 11:15',
-          location: 'Art Corner',
-          tag: 'Creative',
-          tagColor: '#ec4899',
-          backgroundColor: '#fdf2f8',
-        },
-      ],
-      Sat: [
-        {
-          id: 55,
-          subject: 'Show & Tell',
-          time: '09:00 - 09:30',
-          location: 'Story Corner',
-          tag: 'Language',
-          tagColor: '#8b5cf6',
-          backgroundColor: '#faf5ff',
-        },
-        {
-          id: 56,
-          subject: 'Puzzle Solving',
-          time: '09:30 - 10:00',
-          location: 'Learning Corner',
-          tag: 'Activity',
-          tagColor: '#22c55e',
-          backgroundColor: '#f0fdf4',
-        },
-        {
-          id: 57,
-          subject: 'Snack Time',
-          time: '10:00 - 10:15',
-          location: 'Dining Area',
-          tag: 'Break',
-          tagColor: '#f59e0b',
-          backgroundColor: '#fffbeb',
-        },
-        {
-          id: 58,
-          subject: 'Music & Movement',
-          time: '10:15 - 10:45',
-          location: 'Music Room',
-          tag: 'Creative',
-          tagColor: '#ec4899',
-          backgroundColor: '#fdf2f8',
-        },
-      ],
-    },
-    'Junior KG': {
-      Mon: [
-        {
-          id: 59,
-          subject: 'English Reading',
-          time: '09:00 - 09:30',
-          location: 'Learning Corner',
-          tag: 'Language',
-          tagColor: '#8b5cf6',
-          backgroundColor: '#faf5ff',
-        },
-        {
-          id: 60,
-          subject: 'Mathematics',
-          time: '09:30 - 10:00',
-          location: 'Math Corner',
-          tag: 'Math',
-          tagColor: '#3b82f6',
-          backgroundColor: '#eff6ff',
-        },
-        {
-          id: 61,
-          subject: 'Snack Time',
-          time: '10:00 - 10:15',
-          location: 'Dining Area',
-          tag: 'Break',
-          tagColor: '#f59e0b',
-          backgroundColor: '#fffbeb',
-        },
-        {
-          id: 62,
-          subject: 'Physical Education',
-          time: '10:15 - 10:45',
-          location: 'Activity Room',
-          tag: 'Physical',
-          tagColor: '#ef4444',
-          backgroundColor: '#fef2f2',
-        },
-        {
-          id: 63,
-          subject: 'Art & Craft',
-          time: '10:45 - 11:15',
-          location: 'Art Corner',
-          tag: 'Creative',
-          tagColor: '#ec4899',
-          backgroundColor: '#fdf2f8',
-        },
-      ],
-      Tue: [
-        {
-          id: 64,
-          subject: 'Hindi Reading',
-          time: '09:00 - 09:30',
-          location: 'Learning Corner',
-          tag: 'Language',
-          tagColor: '#8b5cf6',
-          backgroundColor: '#faf5ff',
-        },
-        {
-          id: 65,
-          subject: 'Environmental Studies',
-          time: '09:30 - 10:00',
-          location: 'Science Corner',
-          tag: 'Science',
-          tagColor: '#22c55e',
-          backgroundColor: '#f0fdf4',
-        },
-        {
-          id: 66,
-          subject: 'Snack Time',
-          time: '10:00 - 10:15',
-          location: 'Dining Area',
-          tag: 'Break',
-          tagColor: '#f59e0b',
-          backgroundColor: '#fffbeb',
-        },
-        {
-          id: 67,
-          subject: 'Outdoor Activities',
-          time: '10:15 - 10:45',
-          location: 'Garden',
-          tag: 'Physical',
-          tagColor: '#ef4444',
-          backgroundColor: '#fef2f2',
-        },
-        {
-          id: 68,
-          subject: 'Drawing & Painting',
-          time: '10:45 - 11:15',
-          location: 'Art Corner',
-          tag: 'Creative',
-          tagColor: '#ec4899',
-          backgroundColor: '#fdf2f8',
-        },
-      ],
-      Wed: [
-        {
-          id: 69,
-          subject: 'English Writing',
-          time: '09:00 - 09:30',
-          location: 'Learning Corner',
-          tag: 'Language',
-          tagColor: '#8b5cf6',
-          backgroundColor: '#faf5ff',
-        },
-        {
-          id: 70,
-          subject: 'Number Work',
-          time: '09:30 - 10:00',
-          location: 'Math Corner',
-          tag: 'Math',
-          tagColor: '#3b82f6',
-          backgroundColor: '#eff6ff',
-        },
-        {
-          id: 71,
-          subject: 'Snack Time',
-          time: '10:00 - 10:15',
-          location: 'Dining Area',
-          tag: 'Break',
-          tagColor: '#f59e0b',
-          backgroundColor: '#fffbeb',
-        },
-        {
-          id: 72,
-          subject: 'Dance & Music',
-          time: '10:15 - 10:45',
-          location: 'Music Room',
-          tag: 'Creative',
-          tagColor: '#ec4899',
-          backgroundColor: '#fdf2f8',
-        },
-        {
-          id: 73,
-          subject: 'Clay Modeling',
-          time: '10:45 - 11:15',
-          location: 'Art Corner',
-          tag: 'Creative',
-          tagColor: '#ec4899',
-          backgroundColor: '#fdf2f8',
-        },
-      ],
-      Thu: [
-        {
-          id: 74,
-          subject: 'Hindi Writing',
-          time: '09:00 - 09:30',
-          location: 'Learning Corner',
-          tag: 'Language',
-          tagColor: '#8b5cf6',
-          backgroundColor: '#faf5ff',
-        },
-        {
-          id: 75,
-          subject: 'General Knowledge',
-          time: '09:30 - 10:00',
-          location: 'Learning Corner',
-          tag: 'Knowledge',
-          tagColor: '#06b6d4',
-          backgroundColor: '#ecfeff',
-        },
-        {
-          id: 76,
-          subject: 'Snack Time',
-          time: '10:00 - 10:15',
-          location: 'Dining Area',
-          tag: 'Break',
-          tagColor: '#f59e0b',
-          backgroundColor: '#fffbeb',
-        },
-        {
-          id: 77,
-          subject: 'Indoor Games',
-          time: '10:15 - 10:45',
-          location: 'Activity Room',
-          tag: 'Physical',
-          tagColor: '#ef4444',
-          backgroundColor: '#fef2f2',
-        },
-        {
-          id: 78,
-          subject: 'Paper Craft',
-          time: '10:45 - 11:15',
-          location: 'Art Corner',
-          tag: 'Creative',
-          tagColor: '#ec4899',
-          backgroundColor: '#fdf2f8',
-        },
-      ],
-      Fri: [
-        {
-          id: 79,
-          subject: 'Story Time',
-          time: '09:00 - 09:30',
-          location: 'Story Corner',
-          tag: 'Language',
-          tagColor: '#8b5cf6',
-          backgroundColor: '#faf5ff',
-        },
-        {
-          id: 80,
-          subject: 'Mental Math',
-          time: '09:30 - 10:00',
-          location: 'Math Corner',
-          tag: 'Math',
-          tagColor: '#3b82f6',
-          backgroundColor: '#eff6ff',
-        },
-        {
-          id: 81,
-          subject: 'Snack Time',
-          time: '10:00 - 10:15',
-          location: 'Dining Area',
-          tag: 'Break',
-          tagColor: '#f59e0b',
-          backgroundColor: '#fffbeb',
-        },
-        {
-          id: 82,
-          subject: 'Yoga & Exercise',
-          time: '10:15 - 10:45',
-          location: 'Activity Room',
-          tag: 'Physical',
-          tagColor: '#ef4444',
-          backgroundColor: '#fef2f2',
-        },
-        {
-          id: 83,
-          subject: 'Creative Art',
-          time: '10:45 - 11:15',
-          location: 'Art Corner',
-          tag: 'Creative',
-          tagColor: '#ec4899',
-          backgroundColor: '#fdf2f8',
-        },
-      ],
-      Sat: [
-        {
-          id: 84,
-          subject: 'Rhymes & Songs',
-          time: '09:00 - 09:30',
-          location: 'Music Room',
-          tag: 'Language',
-          tagColor: '#8b5cf6',
-          backgroundColor: '#faf5ff',
-        },
-        {
-          id: 85,
-          subject: 'Activity Time',
-          time: '09:30 - 10:00',
-          location: 'Learning Corner',
-          tag: 'Activity',
-          tagColor: '#22c55e',
-          backgroundColor: '#f0fdf4',
-        },
-        {
-          id: 86,
-          subject: 'Snack Time',
-          time: '10:00 - 10:15',
-          location: 'Dining Area',
-          tag: 'Break',
-          tagColor: '#f59e0b',
-          backgroundColor: '#fffbeb',
-        },
-        {
-          id: 87,
-          subject: 'Free Play',
-          time: '10:15 - 10:45',
-          location: 'Play Area',
-          tag: 'Activity',
-          tagColor: '#22c55e',
-          backgroundColor: '#f0fdf4',
-        },
-      ],
-    },
-    'Senior KG': {
-      Mon: [
-        {
-          id: 88,
-          subject: 'English Grammar',
-          time: '09:00 - 09:30',
-          location: 'Learning Corner',
-          tag: 'Language',
-          tagColor: '#8b5cf6',
-          backgroundColor: '#faf5ff',
-        },
-        {
-          id: 89,
-          subject: 'Advanced Math',
-          time: '09:30 - 10:00',
-          location: 'Math Corner',
-          tag: 'Math',
-          tagColor: '#3b82f6',
-          backgroundColor: '#eff6ff',
-        },
-        {
-          id: 90,
-          subject: 'Snack Time',
-          time: '10:00 - 10:15',
-          location: 'Dining Area',
-          tag: 'Break',
-          tagColor: '#f59e0b',
-          backgroundColor: '#fffbeb',
-        },
-        {
-          id: 91,
-          subject: 'Physical Training',
-          time: '10:15 - 10:45',
-          location: 'Activity Room',
-          tag: 'Physical',
-          tagColor: '#ef4444',
-          backgroundColor: '#fef2f2',
-        },
-        {
-          id: 92,
-          subject: 'Advanced Art',
-          time: '10:45 - 11:15',
-          location: 'Art Corner',
-          tag: 'Creative',
-          tagColor: '#ec4899',
-          backgroundColor: '#fdf2f8',
-        },
-      ],
-      Tue: [
-        {
-          id: 93,
-          subject: 'Hindi Grammar',
-          time: '09:00 - 09:30',
-          location: 'Learning Corner',
-          tag: 'Language',
-          tagColor: '#8b5cf6',
-          backgroundColor: '#faf5ff',
-        },
-        {
-          id: 94,
-          subject: 'Science Activities',
-          time: '09:30 - 10:00',
-          location: 'Science Corner',
-          tag: 'Science',
-          tagColor: '#22c55e',
-          backgroundColor: '#f0fdf4',
-        },
-        {
-          id: 95,
-          subject: 'Snack Time',
-          time: '10:00 - 10:15',
-          location: 'Dining Area',
-          tag: 'Break',
-          tagColor: '#f59e0b',
-          backgroundColor: '#fffbeb',
-        },
-        {
-          id: 96,
-          subject: 'Sports Activities',
-          time: '10:15 - 10:45',
-          location: 'Garden',
-          tag: 'Physical',
-          tagColor: '#ef4444',
-          backgroundColor: '#fef2f2',
-        },
-        {
-          id: 97,
-          subject: 'Craft & Design',
-          time: '10:45 - 11:15',
-          location: 'Art Corner',
-          tag: 'Creative',
-          tagColor: '#ec4899',
-          backgroundColor: '#fdf2f8',
-        },
-      ],
-      Wed: [
-        {
-          id: 98,
-          subject: 'English Composition',
-          time: '09:00 - 09:30',
-          location: 'Learning Corner',
-          tag: 'Language',
-          tagColor: '#8b5cf6',
-          backgroundColor: '#faf5ff',
-        },
-        {
-          id: 99,
-          subject: 'Problem Solving',
-          time: '09:30 - 10:00',
-          location: 'Math Corner',
-          tag: 'Math',
-          tagColor: '#3b82f6',
-          backgroundColor: '#eff6ff',
-        },
-        {
-          id: 100,
-          subject: 'Snack Time',
-          time: '10:00 - 10:15',
-          location: 'Dining Area',
-          tag: 'Break',
-          tagColor: '#f59e0b',
-          backgroundColor: '#fffbeb',
-        },
-        {
-          id: 101,
-          subject: 'Music & Dance',
-          time: '10:15 - 10:45',
-          location: 'Music Room',
-          tag: 'Creative',
-          tagColor: '#ec4899',
-          backgroundColor: '#fdf2f8',
-        },
-        {
-          id: 102,
-          subject: 'Advanced Craft',
-          time: '10:45 - 11:15',
-          location: 'Art Corner',
-          tag: 'Creative',
-          tagColor: '#ec4899',
-          backgroundColor: '#fdf2f8',
-        },
-      ],
-      Thu: [
-        {
-          id: 103,
-          subject: 'Hindi Composition',
-          time: '09:00 - 09:30',
-          location: 'Learning Corner',
-          tag: 'Language',
-          tagColor: '#8b5cf6',
-          backgroundColor: '#faf5ff',
-        },
-        {
-          id: 104,
-          subject: 'Computer Basics',
-          time: '09:30 - 10:00',
-          location: 'Computer Lab',
-          tag: 'Technology',
-          tagColor: '#06b6d4',
-          backgroundColor: '#ecfeff',
-        },
-        {
-          id: 105,
-          subject: 'Snack Time',
-          time: '10:00 - 10:15',
-          location: 'Dining Area',
-          tag: 'Break',
-          tagColor: '#f59e0b',
-          backgroundColor: '#fffbeb',
-        },
-        {
-          id: 106,
-          subject: 'Indoor Sports',
-          time: '10:15 - 10:45',
-          location: 'Activity Room',
-          tag: 'Physical',
-          tagColor: '#ef4444',
-          backgroundColor: '#fef2f2',
-        },
-        {
-          id: 107,
-          subject: 'Creative Design',
-          time: '10:45 - 11:15',
-          location: 'Art Corner',
-          tag: 'Creative',
-          tagColor: '#ec4899',
-          backgroundColor: '#fdf2f8',
-        },
-      ],
-      Fri: [
-        {
-          id: 108,
-          subject: 'Story Writing',
-          time: '09:00 - 09:30',
-          location: 'Learning Corner',
-          tag: 'Language',
-          tagColor: '#8b5cf6',
-          backgroundColor: '#faf5ff',
-        },
-        {
-          id: 109,
-          subject: 'Mental Arithmetic',
-          time: '09:30 - 10:00',
-          location: 'Math Corner',
-          tag: 'Math',
-          tagColor: '#3b82f6',
-          backgroundColor: '#eff6ff',
-        },
-        {
-          id: 110,
-          subject: 'Snack Time',
-          time: '10:00 - 10:15',
-          location: 'Dining Area',
-          tag: 'Break',
-          tagColor: '#f59e0b',
-          backgroundColor: '#fffbeb',
-        },
-        {
-          id: 111,
-          subject: 'Yoga & Meditation',
-          time: '10:15 - 10:45',
-          location: 'Activity Room',
-          tag: 'Physical',
-          tagColor: '#ef4444',
-          backgroundColor: '#fef2f2',
-        },
-        {
-          id: 112,
-          subject: 'Art Exhibition',
-          time: '10:45 - 11:15',
-          location: 'Art Corner',
-          tag: 'Creative',
-          tagColor: '#ec4899',
-          backgroundColor: '#fdf2f8',
-        },
-      ],
-      Sat: [
-        {
-          id: 113,
-          subject: 'Public Speaking',
-          time: '09:00 - 09:30',
-          location: 'Learning Corner',
-          tag: 'Language',
-          tagColor: '#8b5cf6',
-          backgroundColor: '#faf5ff',
-        },
-        {
-          id: 114,
-          subject: 'Quiz Time',
-          time: '09:30 - 10:00',
-          location: 'Learning Corner',
-          tag: 'Knowledge',
-          tagColor: '#06b6d4',
-          backgroundColor: '#ecfeff',
-        },
-        {
-          id: 115,
-          subject: 'Snack Time',
-          time: '10:00 - 10:15',
-          location: 'Dining Area',
-          tag: 'Break',
-          tagColor: '#f59e0b',
-          backgroundColor: '#fffbeb',
-        },
-        {
-          id: 116,
-          subject: 'Cultural Activities',
-          time: '10:15 - 10:45',
-          location: 'Activity Room',
-          tag: 'Creative',
-          tagColor: '#ec4899',
-          backgroundColor: '#fdf2f8',
-        },
-      ],
-    },
-  };
-
-  const getCurrentClasses = () => {
-    return classes;
-  };
-
   const handleAddClass = () => {
-    // Navigate to add class page with selected educational level
     router.push({
       pathname: '/add-class' as any,
       params: { educationalLevel: selectedLevel }
@@ -1194,8 +73,7 @@ export default function TimetableScreen() {
   const handleLevelSelect = (level: string) => {
     setSelectedLevel(level);
     setShowLevels(false);
-    // Fetch classes for the selected level
-    setTimeout(() => fetchClasses(), 100);
+    // No fetchClasses needed
   };
 
   const handleBackToLevels = () => {
@@ -1204,8 +82,7 @@ export default function TimetableScreen() {
 
   const handleDaySelect = (day: string) => {
     setSelectedDay(day);
-    // Fetch classes for the selected day
-    setTimeout(() => fetchClasses(), 100);
+    // No fetchClasses needed
   };
 
   return (
@@ -1295,39 +172,35 @@ export default function TimetableScreen() {
           <View style={styles.loadingContainer}>
             <Text style={styles.loadingText}>Loading classes...</Text>
           </View>
-        ) : getCurrentClasses().length === 0 ? (
+        ) : classes.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="calendar-outline" size={48} color="#9ca3af" />
             <Text style={styles.emptyTitle}>No classes scheduled</Text>
             <Text style={styles.emptySubtitle}>Add a class to get started</Text>
           </View>
         ) : (
-          getCurrentClasses().map((classItem) => (
-            <View 
-              key={classItem.id} 
-              style={[
-                styles.classCard, 
-                { backgroundColor: classItem.color ? `${classItem.color}15` : '#f3f4f6' }
-              ]}
+          classes.map((classItem) => (
+            <View
+              key={classItem.id}
+              style={styles.classCardModern}
             >
-              <View style={styles.classHeader}>
-                <Text style={styles.subjectText}>{classItem.subject}</Text>
-                <View style={[styles.tag, { backgroundColor: classItem.color || '#6b7280' }]}>
-                  <Text style={styles.tagText}>Class</Text>
+              <View style={styles.classHeaderModern}>
+                <Text style={styles.subjectTextModern}>{classItem.subject}</Text>
+                <View style={styles.tagModern}>
+                  <Text style={styles.tagTextModern}>Class</Text>
                 </View>
               </View>
-              
-              <View style={styles.classDetails}>
-                <View style={styles.detailRow}>
-                  <Ionicons name="time" size={16} color="#6b7280" />
-                  <Text style={styles.detailText}>
+              <View style={styles.classDetailsModern}>
+                <View style={styles.detailRowModern}>
+                  <Ionicons name="time" size={16} color="#64748b" />
+                  <Text style={styles.detailTextModern}>
                     {classItem.start_time} - {classItem.end_time}
                   </Text>
                 </View>
                 {classItem.teacher_name && (
-                  <View style={styles.detailRow}>
-                    <Ionicons name="person" size={16} color="#6b7280" />
-                    <Text style={styles.detailText}>{classItem.teacher_name}</Text>
+                  <View style={styles.detailRowModern}>
+                    <Ionicons name="person" size={16} color="#64748b" />
+                    <Text style={styles.detailTextModern}>{classItem.teacher_name}</Text>
                   </View>
                 )}
               </View>
@@ -1338,7 +211,7 @@ export default function TimetableScreen() {
         </>
       )}
 
-      {/* Floating Action Button */}
+      {/* Restore the FAB after the ScrollView, only when !showLevels */}
       {!showLevels && (
         <TouchableOpacity style={styles.fab} onPress={handleAddClass}>
           <Ionicons name="add" size={24} color="white" />
@@ -1623,5 +496,56 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6b7280',
     textAlign: 'center',
+  },
+  classCardModern: {
+    backgroundColor: '#f6faff',
+    borderRadius: 16,
+    marginBottom: 20,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 2,
+    borderColor: '#e0e7ef',
+  },
+  classHeaderModern: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  subjectTextModern: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#22223b',
+  },
+  tagModern: {
+    backgroundColor: '#2563eb',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tagTextModern: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  classDetailsModern: {
+    marginTop: 4,
+    gap: 8,
+  },
+  detailRowModern: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  detailTextModern: {
+    fontSize: 16,
+    color: '#22223b',
+    marginLeft: 8,
   },
 }); 

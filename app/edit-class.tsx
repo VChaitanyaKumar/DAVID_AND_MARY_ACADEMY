@@ -1,7 +1,19 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView, StatusBar, TextInput, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import React, { useState } from 'react';
+import { Alert, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+
+// Add a type for class objects
+interface ClassItem {
+  id: number;
+  educationalLevel: string;
+  subject: string;
+  day: string;
+  startTime: string;
+  endTime: string;
+  teacherName: string;
+  color: string;
+}
 
 // Restore initialClasses and previous flat class list logic
 const initialClasses = [
@@ -52,18 +64,6 @@ const colors = [
 ];
 
 const educationalLevels = ['Play Group', 'Pre KG', 'Junior KG', 'Senior KG'];
-
-// Add a type for class objects
-interface ClassItem {
-  id: number;
-  educationalLevel: string;
-  subject: string;
-  day: string;
-  startTime: string;
-  endTime: string;
-  teacherName: string;
-  color: string;
-}
 
 export default function EditClassScreen() {
   const [classes, setClasses] = useState<ClassItem[]>(initialClasses);
@@ -244,7 +244,7 @@ export default function EditClassScreen() {
             <View style={styles.fieldContainer}>
               <Text style={styles.fieldLabel}>Color</Text>
               <View style={styles.colorGrid}>
-                {colors.map((color, index) => (
+                {colors.map((color: string, index: number) => (
                   <TouchableOpacity
                     key={index}
                     style={[
