@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../supabaseClient';
 
 export default function TimetableScreen() {
@@ -63,6 +63,8 @@ export default function TimetableScreen() {
     return dayNames[day as keyof typeof dayNames] || day;
   };
 
+
+
   const handleAddClass = () => {
     router.push({
       pathname: '/add-class' as any,
@@ -83,6 +85,76 @@ export default function TimetableScreen() {
   const handleDaySelect = (day: string) => {
     setSelectedDay(day);
     // No fetchClasses needed
+  };
+
+  const handleEditClass = (classItem: any) => {
+    // Navigate to edit class page with class ID
+    router.push({
+      pathname: '/edit-class' as any,
+      params: { classId: classItem.id }
+    });
+  };
+
+  const handleDeleteClass = (classItem: any) => {
+    // Show confirmation dialog
+    Alert.alert(
+      'Delete Class',
+      'Are you sure you want to delete this class?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Delete class from Supabase
+              const { error } = await supabase
+                .from('classes')
+                .delete()
+                .eq('id', classItem.id);
+
+              if (error) {
+                console.error('Error deleting class:', error);
+                Alert.alert('Error', 'Failed to delete class. Please try again.');
+                return;
+              }
+
+              // Show success message
+              Alert.alert('Success', 'Class deleted successfully!');
+              
+              // Refresh the timetable
+              fetchClasses();
+            } catch (error) {
+              console.error('Error deleting class:', error);
+              Alert.alert('Error', 'Failed to delete class. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Helper function to convert 24-hour format to 12-hour format
+  const convertTo12Hour = (time24: string): string => {
+    if (!time24) return '';
+    
+    const [hours, minutes] = time24.split(':').map(Number);
+    let hour12 = hours;
+    let period = 'AM';
+    
+    if (hours >= 12) {
+      period = 'PM';
+      if (hours > 12) {
+        hour12 = hours - 12;
+      }
+    } else if (hours === 0) {
+      hour12 = 12;
+    }
+    
+    return `${hour12.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${period}`;
   };
 
   return (
@@ -186,15 +258,20 @@ export default function TimetableScreen() {
             >
               <View style={styles.classHeaderModern}>
                 <Text style={styles.subjectTextModern}>{classItem.subject}</Text>
-                <View style={styles.tagModern}>
-                  <Text style={styles.tagTextModern}>Class</Text>
+                <View style={styles.actionIconsContainer}>
+                  <TouchableOpacity style={styles.actionIcon} onPress={() => handleEditClass(classItem)}>
+                    <Ionicons name="create-outline" size={18} color="#64748b" />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.actionIcon} onPress={() => handleDeleteClass(classItem)}>
+                    <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                  </TouchableOpacity>
                 </View>
               </View>
               <View style={styles.classDetailsModern}>
                 <View style={styles.detailRowModern}>
                   <Ionicons name="time" size={16} color="#64748b" />
                   <Text style={styles.detailTextModern}>
-                    {classItem.start_time} - {classItem.end_time}
+                    {convertTo12Hour(classItem.start_time)} - {convertTo12Hour(classItem.end_time)}
                   </Text>
                 </View>
                 {classItem.teacher_name && (
@@ -521,18 +598,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#22223b',
   },
-  tagModern: {
-    backgroundColor: '#2563eb',
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 4,
+  actionIconsContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 8,
   },
-  tagTextModern: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 14,
+  actionIcon: {
+    padding: 4,
+    borderRadius: 4,
   },
   classDetailsModern: {
     marginTop: 4,

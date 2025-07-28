@@ -9,6 +9,11 @@ export default function AddClassScreen() {
   const [day, setDay] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
+  const [startTimePeriod, setStartTimePeriod] = useState('AM');
+  const [endTimePeriod, setEndTimePeriod] = useState('AM');
+  const [showStartDropdown, setShowStartDropdown] = useState(false);
+  const [showEndDropdown, setShowEndDropdown] = useState(false);
+  const [showDayDropdown, setShowDayDropdown] = useState(false);
   const [teacherName, setTeacherName] = useState('');
   const [selectedColor, setSelectedColor] = useState('#3b82f6');
   const [educationalLevel, setEducationalLevel] = useState('Play Group');
@@ -31,6 +36,61 @@ export default function AddClassScreen() {
 
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const educationalLevels = ['Play Group', 'Pre KG', 'Junior KG', 'Senior KG'];
+  const timePeriods = ['AM', 'PM'];
+
+  const handlePeriodSelection = (period: string, isStartTime: boolean) => {
+    if (isStartTime) {
+      setStartTimePeriod(period);
+      setShowStartDropdown(false);
+    } else {
+      setEndTimePeriod(period);
+      setShowEndDropdown(false);
+    }
+  };
+
+  const handleDaySelection = (selectedDay: string) => {
+    setDay(selectedDay);
+    setShowDayDropdown(false);
+  };
+
+  // Helper function to convert 12-hour format to 24-hour format
+  const convertTo24Hour = (time: string, period: string): string => {
+    if (!time || !period) return '';
+    
+    const [hours, minutes] = time.split(':').map(Number);
+    let hour24 = hours;
+    
+    if (period === 'PM' && hours !== 12) {
+      hour24 = hours + 12;
+    } else if (period === 'AM' && hours === 12) {
+      hour24 = 0;
+    }
+    
+    return `${hour24.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
+  };
+
+  // Helper function to convert 24-hour format to 12-hour format
+  const convertTo12Hour = (time24: string): { time: string; period: string } => {
+    if (!time24) return { time: '', period: 'AM' };
+    
+    const [hours, minutes] = time24.split(':').map(Number);
+    let hour12 = hours;
+    let period = 'AM';
+    
+    if (hours >= 12) {
+      period = 'PM';
+      if (hours > 12) {
+        hour12 = hours - 12;
+      }
+    } else if (hours === 0) {
+      hour12 = 12;
+    }
+    
+    return {
+      time: `${hour12.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`,
+      period
+    };
+  };
 
   const handleSaveClass = async () => {
     // Validate required fields
@@ -39,9 +99,26 @@ export default function AddClassScreen() {
       return;
     }
     
+    // Validate time format (HH:MM)
+    const timeRegex = /^([0-9]|0[0-9]|1[0-2]):[0-5][0-9]$/;
+    if (!timeRegex.test(startTime) || !timeRegex.test(endTime)) {
+      Alert.alert('Validation Error', 'Please enter time in HH:MM format (e.g., 09:30, 10:45)');
+      return;
+    }
+    
+    // Validate AM/PM periods
+    if (!startTimePeriod || !endTimePeriod) {
+      Alert.alert('Validation Error', 'Please select AM/PM for both start and end times');
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
+      // Convert 12-hour format to 24-hour format for storage
+      const startTime24 = convertTo24Hour(startTime, startTimePeriod);
+      const endTime24 = convertTo24Hour(endTime, endTimePeriod);
+      
       // Insert new class into Supabase
       const { data, error } = await supabase
         .from('classes')
@@ -49,8 +126,8 @@ export default function AddClassScreen() {
           {
             subject,
             day,
-            start_time: startTime,
-            end_time: endTime,
+            start_time: startTime24,
+            end_time: endTime24,
             teacher_name: teacherName || null,
             color: selectedColor,
             level: educationalLevel
@@ -143,22 +220,29 @@ export default function AddClassScreen() {
           {/* Day Field */}
           <View style={styles.fieldContainer}>
             <Text style={styles.fieldLabel}>Day</Text>
-            <View style={styles.daySelectorRow}>
-              {days.map((d) => (
-                <TouchableOpacity
-                  key={d}
-                  style={[
-                    styles.dayButton,
-                    day === d && styles.selectedDayButton
-                  ]}
-                  onPress={() => setDay(d)}
-                >
-                  <Text style={[
-                    styles.dayButtonText,
-                    day === d && styles.selectedDayButtonText
-                  ]}>{d.slice(0, 3)}</Text>
-                </TouchableOpacity>
-              ))}
+            <View style={styles.dayInputWrapper}>
+              <TouchableOpacity
+                style={styles.dayButton}
+                onPress={() => setShowDayDropdown(!showDayDropdown)}
+              >
+                <Text style={styles.dayButtonText}>
+                  {day || 'Select day'}
+                </Text>
+                <Ionicons name="chevron-down" size={16} color="#6b7280" />
+              </TouchableOpacity>
+              {showDayDropdown && (
+                <View style={styles.dayDropdownContainer}>
+                  {days.map((d) => (
+                    <TouchableOpacity
+                      key={d}
+                      style={styles.dayDropdownOption}
+                      onPress={() => handleDaySelection(d)}
+                    >
+                      <Text style={styles.dayDropdownOptionText}>{d}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
             </View>
           </View>
 
@@ -166,21 +250,65 @@ export default function AddClassScreen() {
           <View style={styles.timeContainer}>
             <View style={styles.timeField}>
               <Text style={styles.fieldLabel}>Start Time</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="09:00"
-                value={startTime}
-                onChangeText={setStartTime}
-              />
+              <View style={styles.timeInputWrapper}>
+                <TextInput
+                  style={styles.timeInput}
+                  placeholder=""
+                  value={startTime}
+                  onChangeText={setStartTime}
+                />
+                <TouchableOpacity
+                  style={styles.periodButton}
+                  onPress={() => setShowStartDropdown(!showStartDropdown)}
+                >
+                  <Text style={styles.periodButtonText}>{startTimePeriod}</Text>
+                  <Ionicons name="chevron-down" size={16} color="#6b7280" />
+                </TouchableOpacity>
+                {showStartDropdown && (
+                  <View style={styles.dropdownContainer}>
+                    {timePeriods.map((period) => (
+                      <TouchableOpacity
+                        key={period}
+                        style={styles.dropdownOption}
+                        onPress={() => handlePeriodSelection(period, true)}
+                      >
+                        <Text style={styles.dropdownOptionText}>{period}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
             </View>
             <View style={styles.timeField}>
               <Text style={styles.fieldLabel}>End Time</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="10:30"
-                value={endTime}
-                onChangeText={setEndTime}
-              />
+              <View style={styles.timeInputWrapper}>
+                <TextInput
+                  style={styles.timeInput}
+                  placeholder=""
+                  value={endTime}
+                  onChangeText={setEndTime}
+                />
+                <TouchableOpacity
+                  style={styles.periodButton}
+                  onPress={() => setShowEndDropdown(!showEndDropdown)}
+                >
+                  <Text style={styles.periodButtonText}>{endTimePeriod}</Text>
+                  <Ionicons name="chevron-down" size={16} color="#6b7280" />
+                </TouchableOpacity>
+                {showEndDropdown && (
+                  <View style={styles.dropdownContainer}>
+                    {timePeriods.map((period) => (
+                      <TouchableOpacity
+                        key={period}
+                        style={styles.dropdownOption}
+                        onPress={() => handlePeriodSelection(period, false)}
+                      >
+                        <Text style={styles.dropdownOptionText}>{period}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
             </View>
           </View>
 
@@ -246,18 +374,6 @@ export default function AddClassScreen() {
           
           <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
             <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
-
-          {/* Edit Class Button */}
-          <TouchableOpacity style={styles.editButton} onPress={() => router.push({ pathname: '/edit-class' as any, params: { educationalLevel } })}>
-            <Ionicons name="create" size={20} color="white" />
-            <Text style={styles.editButtonText}>Edit Class</Text>
-          </TouchableOpacity>
-
-          {/* Delete Class Button */}
-          <TouchableOpacity style={styles.deleteButton} onPress={() => router.push({ pathname: '/delete-class' as any, params: { educationalLevel } })}>
-            <Ionicons name="trash" size={20} color="white" />
-            <Text style={styles.deleteButtonText}>Delete Class</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -360,6 +476,104 @@ const styles = StyleSheet.create({
   },
   timeField: {
     flex: 0.48,
+  },
+  timeInputWrapper: {
+    position: 'relative',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  timeInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    backgroundColor: 'white',
+  },
+  periodButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: 'white',
+    minWidth: 60,
+  },
+  periodButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginRight: 4,
+  },
+  dropdownContainer: {
+    position: 'absolute',
+    top: '100%',
+    right: 0,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    marginTop: 4,
+    zIndex: 1000,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    minWidth: 60,
+  },
+  dropdownOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  dropdownOptionText: {
+    fontSize: 14,
+    color: '#374151',
+    textAlign: 'center',
+  },
+  dayInputWrapper: {
+    position: 'relative',
+  },
+  dayDropdownContainer: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    marginTop: 4,
+    zIndex: 1000,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  dayDropdownOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  dayDropdownOptionText: {
+    fontSize: 14,
+    color: '#374151',
   },
   colorGrid: {
     flexDirection: 'row',
@@ -464,76 +678,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
-  editButton: {
-    backgroundColor: '#4f46e5',
-    borderRadius: 12,
-    paddingVertical: 16,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  editButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  deleteButton: {
-    backgroundColor: '#ef4444',
-    borderRadius: 12,
-    paddingVertical: 16,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  deleteButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  daySelectorRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
-    marginBottom: 4,
-  },
   dayButton: {
-    flex: 1,
-    marginHorizontal: 2,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#f3f4f6',
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  selectedDayButton: {
-    backgroundColor: '#2563eb',
-    borderColor: '#2563eb',
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: 'white',
   },
   dayButtonText: {
-    color: '#374151',
-    fontWeight: '600',
     fontSize: 14,
-  },
-  selectedDayButtonText: {
-    color: 'white',
+    fontWeight: '500',
+    color: '#374151',
   },
 }); 
