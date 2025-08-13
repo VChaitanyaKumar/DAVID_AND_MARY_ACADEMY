@@ -2,16 +2,93 @@ import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { supabase } from '../supabaseClient';
 
-function TaskDetails({ task, onBack }: { task: any, onBack: () => void }) {
+function TaskDetails({ task, onBack, onTaskUpdate }: { task: any, onBack: () => void, onTaskUpdate: (updatedTask: any) => void }) {
   const [text, setText] = React.useState('');
   const [file, setFile] = React.useState<any>(null);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   if (!task) return null;
 
-  const handleSubmit = () => {
-    Alert.alert('Task Submitted', 'Your task has been submitted successfully!');
+  const handleSubmit = async () => {
+    // User can submit text, a file, or both.
+    if (!text.trim() && !file) {
+      Alert.alert('No Submission', 'Please enter text or upload a file to submit.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+      console.log('User:', JSON.stringify(user, null, 2));
+
+      let fileUrl = null;
+      if (file) {
+        const fileName = `${user.id}/${task.id}-${file.name}`;
+        const response = await fetch(file.uri);
+        const fileBody = await response.blob();
+
+        if (!(fileBody instanceof Blob)) {
+          throw new Error('Failed to create a blob from the file URI.');
+        }
+
+        const { error: uploadError } = await supabase.storage
+          .from('submissions')
+          .upload(fileName, fileBody, {
+            cacheControl: '3600',
+            upsert: false,
+          });
+
+        if (uploadError) {
+          console.error('File upload error:', JSON.stringify(uploadError, null, 2));
+          throw uploadError;
+        }
+
+        const { data: urlData } = supabase.storage.from('submissions').getPublicUrl(fileName);
+        fileUrl = urlData.publicUrl;
+      }
+
+      const { data: submissionData, error: submissionError } = await supabase
+        .from('submissions')
+        .insert({
+          task_id: task.id,
+          user_id: user.id,
+          text_answer: text,
+          file_url: fileUrl,
+        });
+
+      if (submissionError) {
+        throw submissionError;
+      }
+      if (!submissionData) {
+        throw new Error('Submission data is null.');
+      }
+
+      const { data: updatedTask, error: updateError } = await supabase
+        .from('tasks')
+        .update({ status: true })
+        .eq('id', task.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      onTaskUpdate(updatedTask);
+      Alert.alert('Task Submitted', 'Your task has been submitted successfully!');
+      onBack();
+
+    } catch (error: any) {
+      console.error('Error submitting task:', error);
+      Alert.alert('Error', `Failed to submit task: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleFilePick = async () => {
@@ -31,7 +108,7 @@ function TaskDetails({ task, onBack }: { task: any, onBack: () => void }) {
         <Ionicons name="arrow-back" size={24} color="#374151" />
       </TouchableOpacity>
       <View style={styles.detailsHeader}>
-        <View style={[styles.detailsIcon, { backgroundColor: `${task.subjectColor}20` }]}> 
+        <View style={[styles.detailsIcon, { backgroundColor: `${task.subjectColor}20` }]}>
           <Ionicons name={task.subjectIcon as any} size={32} color={task.subjectColor} />
         </View>
         <Text style={[styles.detailsSubject, { color: task.subjectColor }]}>{task.subject}</Text>
@@ -39,8 +116,8 @@ function TaskDetails({ task, onBack }: { task: any, onBack: () => void }) {
       <Text style={styles.detailsTitle}>{task.title}</Text>
       <Text style={styles.detailsDue}>{task.dueInfo}</Text>
       <View style={styles.detailsDivider} />
-      <Text style={styles.detailsClass}>Class: <Text style={{ fontWeight: 'bold' }}>{task.class}</Text></Text>
-      <Text style={styles.detailsStatus}>Status: <Text style={{ fontWeight: 'bold', color: task.status === 'overdue' ? '#ef4444' : (task.status === 'due' ? '#f59e0b' : '#22c55e') }}>{task.status}</Text></Text>
+      <Text style={styles.detailsClass}>Class: <Text style={{ fontWeight: 'bold' }}>{task.educational_level}</Text></Text>
+      <Text style={styles.detailsStatus}>Status: <Text style={{ fontWeight: 'bold', color: task.status ? '#22c55e' : '#f59e0b' }}>{task.status ? 'Submitted' : 'Pending'}</Text></Text>
       <Text style={styles.sectionHeading}>Submit Text</Text>
       <TextInput
         style={styles.textArea}
@@ -50,14 +127,13 @@ function TaskDetails({ task, onBack }: { task: any, onBack: () => void }) {
         multiline
         numberOfLines={4}
       />
-      <Text style={styles.orText}>OR</Text>
       <Text style={styles.sectionHeading}>Submit File</Text>
       <TouchableOpacity style={styles.uploadButton} onPress={handleFilePick}>
         <Ionicons name="cloud-upload" size={20} color="#3b82f6" />
         <Text style={styles.uploadButtonText}>{file ? file.name : 'Upload File'}</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-        <Text style={styles.submitButtonText}>Submit Task</Text>
+      <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={isSubmitting}>
+        <Text style={styles.submitButtonText}>{isSubmitting ? 'Submitting...' : 'Submit Task'}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -69,14 +145,43 @@ export default function TasksScreen() {
   const [expandedClass, setExpandedClass] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchTasks = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+      setTasks(data || []);
+    } catch (error: any) {
+      Alert.alert('Error', 'Failed to fetch tasks.');
+      console.error('Error fetching tasks:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useFocusEffect(
     React.useCallback(() => {
+      fetchTasks();
       setSelectedTask(null);
       setSelectedClass(null);
       setExpandedClass(null);
     }, [])
   );
+
+  const handleTaskUpdate = (updatedTask: any) => {
+    const newTasks = tasks.map(t => t.id === updatedTask.id ? updatedTask : t);
+    setTasks(newTasks);
+    setSelectedTask(updatedTask);
+  };
 
   const filters = ['All', 'Today', 'Overdue', 'Upcoming'];
   const educationalLevels = ['Play Group', 'Pre KG', 'Junior KG', 'Senior KG'];
@@ -221,227 +326,52 @@ export default function TasksScreen() {
     return classColorMap[className] || '#6b7280';
   };
 
-  const allTasks = {
-    Today: [
-    {
-      id: 1,
-      subject: 'Mathematics',
-        title: 'Complete Number Writing Practice',
-        dueInfo: 'Due: Today, 11:00 AM',
-      status: 'due',
-        class: 'Pre KG'
-    },
-    {
-      id: 2,
-        subject: 'English',
-        title: 'Phonics Sound Practice',
-        dueInfo: 'Due: Today, 2:00 PM',
-        status: 'due',
-        class: 'Junior KG'
-    },
-    {
-      id: 3,
-        subject: 'Art & Craft',
-        title: 'Complete Clay Modeling Project',
-        dueInfo: 'Due: Today, 4:00 PM',
-        status: 'due',
-        class: 'Senior KG'
-    },
-    {
-      id: 4,
-        subject: 'Story Time',
-        title: 'Read Picture Book Assignment',
-        dueInfo: 'Due: Today, 5:00 PM',
-        status: 'due',
-        class: 'Play Group'
-      },
-      {
-        id: 5,
-        subject: 'Physical Education',
-        title: 'Yoga Exercise Practice',
-        dueInfo: 'Due: Today, 6:00 PM',
-        status: 'due',
-        class: 'Pre KG'
-      },
-    ],
-    Overdue: [
-      {
-        id: 6,
-        subject: 'Drawing',
-        title: 'Complete Coloring Assignment',
-        dueInfo: 'Overdue: Yesterday, 3:00 PM',
-        status: 'overdue',
-        class: 'Play Group'
-      },
-      {
-        id: 7,
-        subject: 'Rhymes',
-        title: 'Learn New Nursery Rhyme',
-        dueInfo: 'Overdue: 2 days ago',
-        status: 'overdue',
-        class: 'Pre KG'
-      },
-      {
-        id: 8,
-        subject: 'Building Blocks',
-        title: 'Complete Tower Building Task',
-        dueInfo: 'Overdue: 3 days ago',
-        status: 'overdue',
-        class: 'Play Group'
-      },
-      {
-        id: 9,
-        subject: 'Hindi',
-        title: 'Letter Writing Practice',
-        dueInfo: 'Overdue: 1 week ago',
-        status: 'overdue',
-        class: 'Junior KG'
-      },
-      {
-        id: 10,
-        subject: 'Science',
-        title: 'Nature Observation Report',
-        dueInfo: 'Overdue: 2 weeks ago',
-        status: 'overdue',
-        class: 'Senior KG'
-      },
-    ],
-    Upcoming: [
-      {
-        id: 11,
-        subject: 'Counting',
-        title: 'Number Recognition Practice',
-        dueInfo: 'Due: Tomorrow, 9:00 AM',
-        status: 'upcoming',
-        class: 'Pre KG'
-      },
-      {
-        id: 12,
-        subject: 'Reading',
-        title: 'Simple Word Reading',
-        dueInfo: 'Due: Tomorrow, 2:00 PM',
-        status: 'upcoming',
-        class: 'Junior KG'
-      },
-      {
-        id: 13,
-        subject: 'Grammar',
-        title: 'Basic Grammar Rules',
-        dueInfo: 'Due: Day after tomorrow, 10:00 AM',
-        status: 'upcoming',
-        class: 'Senior KG'
-      },
-      {
-        id: 14,
-        subject: 'Computer',
-        title: 'Basic Computer Skills',
-        dueInfo: 'Due: This Friday, 3:00 PM',
-        status: 'upcoming',
-        class: 'Senior KG'
-      },
-      {
-        id: 15,
-        subject: 'Music',
-        title: 'Learn New Song',
-        dueInfo: 'Due: Next Monday, 4:00 PM',
-        status: 'upcoming',
-        class: 'Junior KG'
-      },
-      {
-        id: 16,
-        subject: 'Dance',
-        title: 'Dance Step Practice',
-        dueInfo: 'Due: Next Tuesday, 2:00 PM',
-        status: 'upcoming',
-        class: 'Pre KG'
-      },
-      {
-        id: 17,
-        subject: 'Environmental Studies',
-        title: 'Plant Growth Observation',
-        dueInfo: 'Due: Next Wednesday, 11:00 AM',
-        status: 'upcoming',
-        class: 'Senior KG'
-      },
-    ],
-    All: [
-      {
-        id: 1,
-        subject: 'Mathematics',
-        title: 'Complete Number Writing Practice',
-        dueInfo: 'Due: Today, 11:00 AM',
-        status: 'due',
-        class: 'Pre KG'
-      },
-      {
-        id: 2,
-        subject: 'English',
-        title: 'Phonics Sound Practice',
-        dueInfo: 'Due: Today, 2:00 PM',
-        status: 'due',
-        class: 'Junior KG'
-      },
-      {
-        id: 6,
-        subject: 'Drawing',
-        title: 'Complete Coloring Assignment',
-        dueInfo: 'Overdue: Yesterday, 3:00 PM',
-        status: 'overdue',
-        class: 'Play Group'
-      },
-      {
-        id: 7,
-        subject: 'Rhymes',
-        title: 'Learn New Nursery Rhyme',
-        dueInfo: 'Overdue: 2 days ago',
-      status: 'overdue',
-        class: 'Pre KG'
-      },
-      {
-        id: 11,
-        subject: 'Counting',
-        title: 'Number Recognition Practice',
-        dueInfo: 'Due: Tomorrow, 9:00 AM',
-        status: 'upcoming',
-        class: 'Pre KG'
-      },
-      {
-        id: 12,
-        subject: 'Reading',
-        title: 'Simple Word Reading',
-        dueInfo: 'Due: Tomorrow, 2:00 PM',
-        status: 'upcoming',
-        class: 'Junior KG'
-      },
-      {
-        id: 13,
-        subject: 'Grammar',
-        title: 'Basic Grammar Rules',
-        dueInfo: 'Due: Day after tomorrow, 10:00 AM',
-        status: 'upcoming',
-        class: 'Senior KG'
-      },
-    ]
-  };
-
   const getCurrentTasks = () => {
-    return allTasks[selectedFilter as keyof typeof allTasks] || [];
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    switch (selectedFilter) {
+      case 'Today':
+        return tasks.filter(task => {
+          const dueDate = new Date(task.due_date);
+          return dueDate >= today && dueDate < tomorrow;
+        });
+      case 'Overdue':
+        return tasks.filter(task => new Date(task.due_date) < today && !task.status);
+      case 'Upcoming':
+        return tasks.filter(task => new Date(task.due_date) >= tomorrow);
+      case 'All':
+      default:
+        return tasks;
+    }
   };
 
   const getTasksByClass = (className: string) => {
     const currentTasks = getCurrentTasks();
-    return currentTasks.filter(task => task.class === className);
+    return currentTasks.filter(task => task.educational_level === className);
   };
 
   const toggleClassExpansion = (className: string) => {
     setExpandedClass(prev => (prev === className ? null : className));
   };
 
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#001F54" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   if (selectedTask) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="white" />
-        <TaskDetails task={selectedTask} onBack={() => setSelectedTask(null)} />
+        <TaskDetails task={selectedTask} onBack={() => setSelectedTask(null)} onTaskUpdate={handleTaskUpdate} />
       </SafeAreaView>
     );
   }
@@ -472,7 +402,7 @@ export default function TasksScreen() {
                 style={styles.timetableCard}
                 onPress={() => setSelectedTask({ ...task, subjectColor, subjectIcon })}
               >
-                <View style={[styles.timetableIcon, { backgroundColor: subjectColor + '20' }]}> 
+                <View style={[styles.timetableIcon, { backgroundColor: subjectColor + '20' }]}>
                   <Ionicons name={subjectIcon as any} size={28} color={subjectColor} />
                 </View>
                 <View style={styles.timetableInfo}>
@@ -540,12 +470,12 @@ export default function TasksScreen() {
           const classTasks = getTasksByClass(className);
           const firstTask = classTasks[0];
           return (
-              <TouchableOpacity 
+              <TouchableOpacity
               key={className}
               style={styles.timetableCard}
               onPress={() => setSelectedClass(className)}
               >
-              <View style={[styles.timetableIcon, { backgroundColor: getClassColor(className) + '20' }]}> 
+              <View style={[styles.timetableIcon, { backgroundColor: getClassColor(className) + '20' }]}>
                 <Ionicons name="school" size={28} color={getClassColor(className)} />
                   </View>
               <View style={styles.timetableInfo}>
@@ -931,4 +861,4 @@ const styles = StyleSheet.create({
   filterButtonIcon: {
     padding: 8,
   },
-}); 
+});

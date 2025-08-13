@@ -3,6 +3,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { supabase } from './supabaseClient';
 
 const NAVY = '#001F54';
 const LEVELS = ['Play Group', 'Pre KG', 'Junior KG', 'Senior KG'];
@@ -10,13 +11,7 @@ const LEVELS = ['Play Group', 'Pre KG', 'Junior KG', 'Senior KG'];
 export default function AddTaskPage() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const routeEducationalLevel = params?.educationalLevel as string || LEVELS[0];
-
-  React.useEffect(() => {
-    if (routeEducationalLevel) {
-      // setEducationalLevel(routeEducationalLevel); // This line is removed
-    }
-  }, [routeEducationalLevel]);
+  const [educationalLevel, setEducationalLevel] = useState(params?.educationalLevel as string || LEVELS[0]);
 
   const [subject, setSubject] = useState('');
   const [title, setTitle] = useState('');
@@ -24,14 +19,53 @@ export default function AddTaskPage() {
   const [dueDate, setDueDate] = useState(new Date());
   const [showDate, setShowDate] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [priority, setPriority] = useState('Medium');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSave = () => {
+
+  const handleSave = async () => {
     if (!title.trim()) {
       Alert.alert('Validation', 'Please enter a task title.');
       return;
     }
-    Alert.alert('Task Saved', 'Your new task has been saved.');
-    // Add your save logic here
+
+    setIsSubmitting(true);
+
+    try {
+      const { data, error } = await supabase.from('tasks').insert([
+        {
+          educational_level: educationalLevel,
+          subject,
+          title,
+          description,
+          due_date: dueDate.toISOString().split('T')[0],
+          status: completed,
+          priority,
+        },
+      ]);
+
+      if (error) {
+        throw error;
+      }
+
+      Alert.alert(
+        'Successfully Submitted',
+        'Your task has been submitted successfully.',
+        [
+          {
+            text: 'OK',
+            onPress: () => router.push({ pathname: '/(tabs)/tasks', params: { updated: Date.now().toString() } }),
+          },
+        ],
+        { cancelable: false }
+      );
+
+    } catch (error: any) {
+      console.error('Error saving task:', JSON.stringify(error, null, 2));
+      Alert.alert('Error', `Failed to save task: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -52,14 +86,25 @@ export default function AddTaskPage() {
         <View style={styles.formCard}>
           <Text style={styles.label}>Educational Level</Text>
           <View style={styles.levelSelector}>
-            <View
-              key={routeEducationalLevel}
-              style={[styles.levelButton, styles.selectedLevelButton]}
-            >
-              <Text style={[styles.levelButtonText, styles.selectedLevelButtonText]}>
-                {routeEducationalLevel}
-              </Text>
-            </View>
+            {LEVELS.map((level) => (
+              <TouchableOpacity
+                key={level}
+                style={[
+                  styles.levelButton,
+                  educationalLevel === level && styles.selectedLevelButton,
+                ]}
+                onPress={() => setEducationalLevel(level)}
+              >
+                <Text
+                  style={[
+                    styles.levelButtonText,
+                    educationalLevel === level && styles.selectedLevelButtonText,
+                  ]}
+                >
+                  {level}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
           <Text style={styles.label}>Subject</Text>
           <TextInput
@@ -114,6 +159,12 @@ export default function AddTaskPage() {
             <Text style={styles.checkboxLabel}>Mark as completed</Text>
           </View>
           <Text style={styles.label}>Priority</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter priority (e.g., High, Medium, Low)"
+            value={priority}
+            onChangeText={setPriority}
+          />
         </View>
         <View style={styles.infoBox}>
           <Ionicons name="information-circle-outline" size={20} color={NAVY} style={{ marginRight: 8 }} />
@@ -122,11 +173,11 @@ export default function AddTaskPage() {
           </Text>
         </View>
         <View style={styles.buttonRow}>
-          <TouchableOpacity style={styles.cancelBtn}>
+          <TouchableOpacity style={styles.cancelBtn} onPress={() => router.back()}>
             <Text style={styles.cancelBtnText}>Cancel</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-            <Text style={styles.saveBtnText}>+ Save Task</Text>
+          <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={isSubmitting}>
+            <Text style={styles.saveBtnText}>{isSubmitting ? 'Saving...' : '+ Save Task'}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -301,4 +352,4 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
-}); 
+});
