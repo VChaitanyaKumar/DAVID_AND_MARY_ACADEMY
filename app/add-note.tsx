@@ -1,38 +1,124 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
+import { supabase } from './supabaseClient';
 
 export default function AddNoteScreen() {
-  const params = useLocalSearchParams();
-  const routeEducationalLevel = params?.educationalLevel as string || 'Play Group';
-  const [subject, setSubject] = useState('');
+  const { educationalLevel, educationalLevelName } = useLocalSearchParams();
   const [title, setTitle] = useState('');
   const [noteText, setNoteText] = useState('');
-  const [attachedFile, setAttachedFile] = useState<string | null>(null);
+  const [attachedFile, setAttachedFile] = useState<any | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [subjects, setSubjects] = useState<any[]>([]);
+  const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
 
-  const educationalLevels = ['Play Group', 'Pre KG', 'Junior KG', 'Senior KG'];
+  useEffect(() => {
+    if (educationalLevel) {
+      setSubjects(getSubjectsForLevel(educationalLevel as string));
+    }
+  }, [educationalLevel]);
 
-  const handleSaveNote = () => {
-    // TODO: Save note logic
-    console.log('Saving note:', { 
-      educationalLevel: routeEducationalLevel, 
-      subject, 
-      title, 
-      noteText, 
-      attachedFile 
-    });
-    router.back();
+  const getSubjectsForLevel = (level: string) => {
+    const subjectsByLevel = {
+        playgroup: [
+            { id: 'storytime', name: 'Story Time' },
+            { id: 'artcraft', name: 'Art & Craft' },
+            { id: 'music', name: 'Music & Movement' },
+            { id: 'play', name: 'Play & Learn' }
+        ],
+        prekg: [
+            { id: 'phonics', name: 'Phonics' },
+            { id: 'counting', name: 'Counting' },
+            { id: 'shapes', name: 'Shapes & Colors' },
+            { id: 'writing', name: 'Letter Writing' }
+        ],
+        juniorkg: [
+            { id: 'english', name: 'English' },
+            { id: 'hindi', name: 'Hindi' },
+            { id: 'math', name: 'Mathematics' },
+            { id: 'environmental', name: 'Environmental Studies' }
+        ],
+        seniorkg: [
+            { id: 'english_advanced', name: 'English Grammar' },
+            { id: 'hindi_advanced', name: 'Hindi Grammar' },
+            { id: 'math_advanced', name: 'Advanced Math' },
+            { id: 'computer', name: 'Computer Basics' }
+        ]
+    };
+    return subjectsByLevel[level as keyof typeof subjectsByLevel] || [];
+  };
+
+  const handleSaveNote = async () => {
+    if (!title.trim()) {
+      Alert.alert('Validation', 'Please enter a note title.');
+      return;
+    }
+    if (!selectedSubject) {
+      Alert.alert('Validation', 'Please select a subject.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      let fileUrl = null;
+      if (attachedFile) {
+        const fileName = `${user.id}/${Date.now()}-${attachedFile.name}`;
+        const fileBody = await fetch(attachedFile.uri).then(res => res.blob());
+        const { error: uploadError } = await supabase.storage
+          .from('notes')
+          .upload(fileName, fileBody, {
+            cacheControl: '3600',
+            upsert: false,
+          });
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        const { data: urlData } = supabase.storage.from('notes').getPublicUrl(fileName);
+        fileUrl = urlData.publicUrl;
+      }
+
+      const { error } = await supabase.from('notes').insert([
+        {
+          educational_level: educationalLevelName,
+          subject: selectedSubject,
+          title,
+          content: noteText,
+          attached_file: fileUrl,
+          user_id: user.id,
+        },
+      ]).select();
+
+      if (error) {
+        throw error;
+      }
+
+      Alert.alert('Note Saved!', 'Your new note has been saved successfully.');
+      router.back();
+
+    } catch (error: any) {
+      console.error('Error saving note:', error);
+      Alert.alert('Error', `Failed to save note: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleDiscard = () => {
@@ -47,7 +133,7 @@ export default function AddNoteScreen() {
       });
 
       if (result.canceled === false) {
-        setAttachedFile(result.assets[0].name);
+        setAttachedFile(result.assets[0]);
       }
     } catch (error) {
       console.log('Error picking document:', error);
@@ -58,46 +144,56 @@ export default function AddNoteScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="white" />
       
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#374151" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Add New Note</Text>
-        <TouchableOpacity style={styles.saveButton} onPress={handleSaveNote}>
+        <TouchableOpacity style={styles.saveButton} onPress={handleSaveNote} disabled={isSubmitting}>
           <Ionicons name="checkmark" size={24} color="#3b82f6" />
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Educational Level */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Educational Level</Text>
           <View style={styles.levelSelector}>
             <View
-              key={routeEducationalLevel}
+              key={educationalLevel as string}
               style={[styles.levelButton, styles.selectedLevelButton]}
             >
               <Text style={[styles.levelButtonText, styles.selectedLevelButtonText]}>
-                {routeEducationalLevel}
+                {educationalLevel}
               </Text>
             </View>
           </View>
         </View>
 
-        {/* Subject */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Subject</Text>
-          <TextInput
-            style={styles.textInput}
-            placeholder="Enter subject"
-            placeholderTextColor="#9ca3af"
-            value={subject}
-            onChangeText={setSubject}
-          />
+          <View style={styles.subjectSelector}>
+            {subjects.map((s) => (
+              <TouchableOpacity
+                key={s.id}
+                style={[
+                  styles.subjectButton,
+                  selectedSubject === s.name && styles.selectedSubjectButton,
+                ]}
+                onPress={() => setSelectedSubject(s.name)}
+              >
+                <Text
+                  style={[
+                    styles.subjectButtonText,
+                    selectedSubject === s.name && styles.selectedSubjectButtonText,
+                  ]}
+                >
+                  {s.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
-        {/* Title */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Title</Text>
           <TextInput
@@ -109,7 +205,6 @@ export default function AddNoteScreen() {
           />
         </View>
 
-        {/* Note */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Note</Text>
           <TextInput
@@ -124,14 +219,13 @@ export default function AddNoteScreen() {
           />
         </View>
 
-        {/* Attach File */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Attach file</Text>
           <TouchableOpacity style={styles.attachArea} onPress={handleAttachFile}>
             {attachedFile ? (
               <View style={styles.attachedFile}>
                 <Ionicons name="document" size={24} color="#3b82f6" />
-                <Text style={styles.attachedFileName}>{attachedFile}</Text>
+                <Text style={styles.attachedFileName}>{attachedFile.name}</Text>
               </View>
             ) : (
               <View style={styles.attachPlaceholder}>
@@ -145,9 +239,8 @@ export default function AddNoteScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Action Buttons */}
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.saveNoteButton} onPress={handleSaveNote}>
+          <TouchableOpacity style={styles.saveNoteButton} onPress={handleSaveNote} disabled={isSubmitting}>
             <Text style={styles.saveNoteButtonText}>Save Note</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.discardButton} onPress={handleDiscard}>
@@ -160,6 +253,31 @@ export default function AddNoteScreen() {
 }
 
 const styles = StyleSheet.create({
+  subjectSelector: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  subjectButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    backgroundColor: 'white',
+  },
+  selectedSubjectButton: {
+    backgroundColor: '#1e3a8a',
+    borderColor: '#1e3a8a',
+  },
+  subjectButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6b7280',
+  },
+  selectedSubjectButtonText: {
+    color: 'white',
+  },
   container: {
     flex: 1,
     backgroundColor: 'white',
@@ -306,4 +424,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#374151',
   },
-}); 
+});
