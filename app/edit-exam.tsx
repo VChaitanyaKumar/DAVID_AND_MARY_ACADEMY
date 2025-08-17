@@ -3,42 +3,56 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Alert,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { supabase } from './supabaseClient';
 
-export default function AddExamScreen() {
-  const [subject, setSubject] = useState('');
-  const [examName, setExamName] = useState('');
-  const [examType, setExamType] = useState('');
-  const [examDate, setExamDate] = useState(new Date());
-  const [examTime, setExamTime] = useState(new Date());
-  const [duration, setDuration] = useState('2.5');
-  const [notes, setNotes] = useState('');
+// Define the structure of an exam object
+interface Exam {
+  id: string;
+  exam_name: string;
+  subject: string;
+  exam_type: string;
+  exam_date: string;
+  exam_time: string;
+  duration: number;
+  notes: string;
+  educational_level: string;
+}
+
+export default function EditExamScreen() {
+  const params = useLocalSearchParams();
+  const exam = JSON.parse(params.exam as string) as Exam;
+
+  const [subject, setSubject] = useState(exam.subject);
+  const [examName, setExamName] = useState(exam.exam_name);
+  const [examType, setExamType] = useState(exam.exam_type);
+  const [examDate, setExamDate] = useState(new Date(exam.exam_date));
+  const [examTime, setExamTime] = useState(new Date(`1970-01-01T${exam.exam_time}Z`));
+  const [duration, setDuration] = useState(exam.duration.toString());
+  const [notes, setNotes] = useState(exam.notes);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
-  const params = useLocalSearchParams();
-  const routeEducationalLevel = params?.educationalLevel as string || 'Play Group';
-
-  const handleSaveExam = async () => {
+  const handleUpdateExam = async () => {
     if (!subject || !examName || !examType || !duration) {
       Alert.alert('Error', 'Please fill in all required fields.');
       return;
     }
 
     try {
-      const { error } = await supabase.from('exams').insert([
-        {
+      const { error } = await supabase
+        .from('exams')
+        .update({
           subject,
           exam_name: examName,
           exam_type: examType,
@@ -46,19 +60,18 @@ export default function AddExamScreen() {
           exam_time: examTime.toTimeString().split(' ')[0],
           duration: parseFloat(duration),
           notes,
-          educational_level: routeEducationalLevel,
-        },
-      ]);
+        })
+        .eq('id', exam.id);
 
       if (error) {
         throw error;
       }
 
-      Alert.alert('Success', 'Exam saved successfully!');
+      Alert.alert('Success', 'Exam updated successfully!');
       router.back();
     } catch (err) {
-      console.error('Error saving exam:', err);
-      Alert.alert('Error', 'Failed to save exam. Please try again.');
+      console.error('Error updating exam:', err);
+      Alert.alert('Error', 'Failed to update exam. Please try again.');
     }
   };
 
@@ -105,8 +118,8 @@ export default function AddExamScreen() {
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#374151" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Add New Exam</Text>
-        <TouchableOpacity style={styles.saveButton} onPress={handleSaveExam}>
+        <Text style={styles.headerTitle}>Edit Exam</Text>
+        <TouchableOpacity style={styles.saveButton} onPress={handleUpdateExam}>
           <Ionicons name="checkmark" size={24} color="#3b82f6" />
         </TouchableOpacity>
       </View>
@@ -117,11 +130,11 @@ export default function AddExamScreen() {
           <Text style={styles.label}>Educational Level</Text>
           <View style={styles.levelSelector}>
             <View
-              key={routeEducationalLevel}
+              key={exam.educational_level}
               style={[styles.levelButton, styles.selectedLevelButton]}
             >
               <Text style={[styles.levelButtonText, styles.selectedLevelButtonText]}>
-                {routeEducationalLevel}
+                {exam.educational_level}
               </Text>
             </View>
           </View>
@@ -222,22 +235,9 @@ export default function AddExamScreen() {
           />
         </View>
 
-        {/* Reminder Section */}
-        <View style={styles.reminderContainer}>
-          <View style={styles.reminderContent}>
-            <Ionicons name="notifications" size={24} color="#3b82f6" />
-            <View style={styles.reminderText}>
-              <Text style={styles.reminderTitle}>Set Reminder</Text>
-              <TouchableOpacity>
-                <Text style={styles.reminderLink}>Get notified 1 day before exam</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-
         {/* Save Button */}
-        <TouchableOpacity style={styles.saveExamButton} onPress={handleSaveExam}>
-          <Text style={styles.saveExamButtonText}>Save Exam</Text>
+        <TouchableOpacity style={styles.saveExamButton} onPress={handleUpdateExam}>
+          <Text style={styles.saveExamButtonText}>Update Exam</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -358,31 +358,6 @@ const styles = StyleSheet.create({
   durationUnit: {
     fontSize: 16,
     color: '#374151',
-    fontWeight: '500',
-  },
-  reminderContainer: {
-    backgroundColor: '#dbeafe',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 24,
-  },
-  reminderContent: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  reminderText: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  reminderTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#374151',
-    marginBottom: 4,
-  },
-  reminderLink: {
-    fontSize: 14,
-    color: '#3b82f6',
     fontWeight: '500',
   },
   saveExamButton: {

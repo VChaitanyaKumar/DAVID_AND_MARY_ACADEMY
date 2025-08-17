@@ -1,84 +1,36 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React, { useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
+import { supabase } from './supabaseClient';
 
+// Static list of educational levels
 const educationalLevels = ['Play Group', 'Pre KG', 'Junior KG', 'Senior KG'];
 
-const examsByLevel = {
-  'Play Group': [
-    {
-      id: 1,
-      subject: 'Mathematics',
-      examTitle: 'Numbers 1-10',
-      date: 'March 15, 2024 • 9:00 AM',
-      daysLeft: '2 days left',
-      duration: '1 hour',
-      color: '#f59e0b',
-      tagColor: '#fde68a',
-      tagTextColor: '#374151'
-    },
-    {
-      id: 2,
-      subject: 'Story Time',
-      examTitle: 'Short Story Recitation',
-      date: 'March 18, 2024 • 10:00 AM',
-      daysLeft: '5 days left',
-      duration: '30 min',
-      color: '#8b5cf6',
-      tagColor: '#ddd6fe',
-      tagTextColor: '#374151'
-    }
-  ],
-  'Pre KG': [
-    {
-      id: 3,
-      subject: 'English',
-      examTitle: 'Alphabet Recognition',
-      date: 'March 16, 2024 • 11:00 AM',
-      daysLeft: '3 days left',
-      duration: '1 hour',
-      color: '#3b82f6',
-      tagColor: '#bfdbfe',
-      tagTextColor: '#374151'
-    }
-  ],
-  'Junior KG': [
-    {
-      id: 4,
-      subject: 'Science',
-      examTitle: 'Plants and Animals',
-      date: 'March 20, 2024 • 1:00 PM',
-      daysLeft: '7 days left',
-      duration: '1.5 hours',
-      color: '#22c55e',
-      tagColor: '#bbf7d0',
-      tagTextColor: '#374151'
-    }
-  ],
-  'Senior KG': [
-    {
-      id: 5,
-      subject: 'Mathematics',
-      examTitle: 'Addition and Subtraction',
-      date: 'March 22, 2024 • 2:00 PM',
-      daysLeft: '9 days left',
-      duration: '2 hours',
-      color: '#8b5cf6',
-      tagColor: '#ddd6fe',
-      tagTextColor: '#374151'
-    }
-  ]
-};
+// Define the structure of an exam object
+interface Exam {
+  id: string;
+  exam_name: string;
+  subject: string;
+  exam_type: string;
+  exam_date: string;
+  exam_time: string;
+  duration: number;
+  notes: string;
+  educational_level: string;
+}
 
+// Function to get a color for each education level
 function getClassColor(className: string) {
   const classColorMap: { [key: string]: string } = {
     'Play Group': '#f59e0b', // Orange
@@ -90,15 +42,130 @@ function getClassColor(className: string) {
 }
 
 export default function UpcomingExamsScreen() {
-  const [selectedLevel, setSelectedLevel] = useState<keyof typeof examsByLevel | null>(null);
+  const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
+  const [exams, setExams] = useState<Exam[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleAddExam = () => {
-    router.push('/add-exam' as any);
+  // Fetch exams from Supabase for the selected educational level
+  const fetchExams = useCallback(async (level: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error } = await supabase
+        .from('exams')
+        .select('*')
+        .eq('educational_level', level)
+        .order('exam_date', { ascending: true });
+
+      if (error) {
+        throw error;
+      }
+      setExams(data || []);
+    } catch (err) {
+      setError('Failed to fetch exams. Please try again.');
+      console.error('Error fetching exams:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Refetch exams when the screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      if (selectedLevel) {
+        fetchExams(selectedLevel);
+      }
+    }, [selectedLevel, fetchExams])
+  );
+
+  // Handle selecting an educational level
+  const handleSelectLevel = (level: string) => {
+    setSelectedLevel(level);
+    fetchExams(level);
   };
 
+  // Navigate back or deselect the current level
   const handleBack = () => {
-    if (selectedLevel) setSelectedLevel(null);
-    else router.back();
+    if (selectedLevel) {
+      setSelectedLevel(null);
+      setExams([]);
+      setError(null);
+    } else {
+      router.back();
+    }
+  };
+
+  // Handle deleting an exam
+  const handleDelete = async (examId: string) => {
+    Alert.alert(
+      'Confirm Deletion',
+      'Are you sure you want to delete this exam?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('exams')
+                .delete()
+                .eq('id', examId);
+
+              if (error) {
+                throw error;
+              }
+
+              // Refresh the exam list
+              if (selectedLevel) {
+                fetchExams(selectedLevel);
+              }
+            } catch (err) {
+              setError('Failed to delete exam. Please try again.');
+              console.error('Error deleting exam:', err);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Handle editing an exam
+  const handleEdit = (exam: Exam) => {
+    router.push({
+      pathname: '/edit-exam',
+      params: { exam: JSON.stringify(exam) },
+    } as any);
+  };
+
+  // Format date and time for display
+  const formatDateTime = (date: string, time: string) => {
+    const options: Intl.DateTimeFormatOptions = {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    };
+    const formattedDate = new Date(date).toLocaleDateString(undefined, options);
+    const formattedTime = new Date(`1970-01-01T${time}Z`).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+    return `${formattedDate} • ${formattedTime}`;
+  };
+
+  // Calculate days left until the exam
+  const getDaysLeft = (date: string) => {
+    const examDate = new Date(date);
+    const today = new Date();
+    const diffTime = examDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) return 'Past';
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return '1 day left';
+    return `${diffDays} days left`;
   };
 
   return (
@@ -106,60 +173,89 @@ export default function UpcomingExamsScreen() {
       <StatusBar barStyle="dark-content" backgroundColor="white" />
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.push('/(tabs)/home')} style={styles.backButton}>
+        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#374151" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Upcoming Exams</Text>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.headerIcon} onPress={() => console.log('Calendar pressed')}>
+          <TouchableOpacity style={styles.headerIcon}>
             <Ionicons name="calendar" size={24} color="#374151" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIcon} onPress={() => console.log('Menu pressed')}>
+          <TouchableOpacity style={styles.headerIcon}>
             <Ionicons name="menu" size={24} color="#374151" />
           </TouchableOpacity>
         </View>
       </View>
+
       {selectedLevel ? (
+        // Exams View
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {examsByLevel[selectedLevel].map((exam: typeof examsByLevel["Play Group"][0]) => (
-            <View key={exam.id} style={[styles.examCard, { borderLeftColor: exam.color, borderLeftWidth: 6, backgroundColor: '#f9fafb' }]}> 
-              <View style={styles.examHeaderRow}>
-                <View style={[styles.examIconCircle, { backgroundColor: exam.color + '22' }]}> 
-                  <Ionicons name="school" size={28} color={exam.color} />
+          {loading ? (
+            <ActivityIndicator size="large" color="#3b82f6" style={{ marginTop: 20 }} />
+          ) : error ? (
+            <Text style={styles.errorText}>{error}</Text>
+          ) : exams.length === 0 ? (
+            <Text style={styles.noExamsText}>No upcoming exams for {selectedLevel}.</Text>
+          ) : (
+            exams.map((exam) => (
+              <View key={exam.id} style={[styles.examCard, { borderLeftColor: getClassColor(selectedLevel) }]}>
+                <View style={styles.examCardHeader}>
+                  <View style={styles.examCardHeaderLeft}>
+                    <View style={[styles.examIconCircle, { backgroundColor: getClassColor(selectedLevel) + '22' }]}>
+                      <Ionicons name="school-outline" size={24} color={getClassColor(selectedLevel)} />
+                    </View>
+                    <View>
+                      <Text style={styles.examSubject}>{exam.subject}</Text>
+                      <Text style={styles.examTitle}>{exam.exam_name}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.examCardHeaderRight}>
+                    <View style={styles.examActions}>
+                      <TouchableOpacity onPress={() => handleEdit(exam)} style={styles.actionButton}>
+                        <Ionicons name="pencil" size={18} color="#3b82f6" />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleDelete(exam.id)} style={styles.actionButton}>
+                        <Ionicons name="trash" size={18} color="#ef4444" />
+                      </TouchableOpacity>
+                    </View>
+                    <View style={[styles.examDateBadge, { backgroundColor: '#fef3c7' }]}>
+                      <Ionicons name="calendar-outline" size={14} color="#92400e" />
+                      <Text style={[styles.examDateText, { color: '#92400e' }]}>{getDaysLeft(exam.exam_date)}</Text>
+                    </View>
+                  </View>
                 </View>
-                <View style={styles.examHeaderText}>
-                  <Text style={styles.examSubject}>{exam.subject}</Text>
-                  <Text style={styles.examTitle}>{exam.examTitle}</Text>
+                <View style={styles.examDetailsRow}>
+                  <View style={styles.examDetailItem}>
+                    <Ionicons name="calendar-outline" size={16} color="#6b7280" />
+                    <Text style={styles.examDetailText}>{formatDateTime(exam.exam_date, exam.exam_time)}</Text>
+                  </View>
+                  <View style={styles.examDetailItem}>
+                    <Ionicons name="time-outline" size={16} color="#6b7280" />
+                    <Text style={styles.examDetailText}>{exam.duration} hours</Text>
+                  </View>
                 </View>
-                <View style={[styles.examDateBadge, { backgroundColor: exam.tagColor }]}> 
-                  <Ionicons name="calendar" size={14} color={exam.tagTextColor} />
-                  <Text style={[styles.examDateText, { color: exam.tagTextColor }]}>{exam.daysLeft}</Text>
-                </View>
+                {exam.notes && (
+                  <View style={styles.notesContainer}>
+                    <Ionicons name="document-text-outline" size={16} color="#6b7280" />
+                    <Text style={styles.notesText}>{exam.notes}</Text>
+                  </View>
+                )}
               </View>
-              <View style={styles.examDetailsRow}>
-                <View style={styles.examDetailItem}>
-                  <Ionicons name="calendar" size={16} color="#6b7280" />
-                  <Text style={styles.examDetailText}>{exam.date}</Text>
-                </View>
-                <View style={styles.examDetailItem}>
-                  <Ionicons name="time" size={16} color="#374151" />
-                  <Text style={styles.examDetailText}>{exam.duration}</Text>
-                </View>
-              </View>
-            </View>
-          ))}
+            ))
+          )}
         </ScrollView>
       ) : (
+        // Education Levels View
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {educationalLevels.map((level) => (
             <TouchableOpacity
               key={level}
               style={styles.levelCard}
-              onPress={() => setSelectedLevel(level as keyof typeof examsByLevel)}
+              onPress={() => handleSelectLevel(level)}
             >
               <View style={styles.levelCardContent}>
                 <View style={styles.levelCardLeft}>
-                  <View style={[styles.levelIconContainer, { backgroundColor: getClassColor(level) }]}> 
+                  <View style={[styles.levelIconContainer, { backgroundColor: getClassColor(level) }]}>
                     <Ionicons name="school" size={24} color="white" />
                   </View>
                   <View style={styles.levelCardText}>
@@ -173,9 +269,13 @@ export default function UpcomingExamsScreen() {
           ))}
         </ScrollView>
       )}
-      {/* Floating Action Button */}
+
+      {/* Floating Action Button to Add Exam */}
       {selectedLevel && (
-        <TouchableOpacity style={styles.fab} onPress={() => router.push({ pathname: '/add-exam' as any, params: { educationalLevel: selectedLevel } })}>
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => router.push({ pathname: '/add-exam', params: { educationalLevel: selectedLevel } })}
+        >
           <Ionicons name="add" size={24} color="white" />
         </TouchableOpacity>
       )}
@@ -228,95 +328,23 @@ const styles = StyleSheet.create({
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 2,
+    borderLeftWidth: 5,
   },
-  examHeader: {
+  examCardHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    alignItems: 'flex-start',
+    marginBottom: 12,
   },
-  subjectSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  subjectDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 8,
-  },
-  subjectName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#374151',
-  },
-  daysLeftTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  daysLeftText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  examTitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 0,
-    lineHeight: 20,
-  },
-  examDetails: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  dateSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  dateText: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginLeft: 4,
-  },
-  durationSection: {
+  examCardHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  durationText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#374151',
-    marginLeft: 4,
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 40,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#3b82f6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  examHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
+  examCardHeaderRight: {
+    alignItems: 'flex-end',
   },
   examIconCircle: {
     width: 44,
@@ -335,13 +363,17 @@ const styles = StyleSheet.create({
     color: '#374151',
     marginBottom: 2,
   },
+  examTitle: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
   examDateBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
-    marginLeft: 10,
+    marginTop: 8,
   },
   examDateText: {
     fontSize: 12,
@@ -362,6 +394,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6b7280',
     marginLeft: 6,
+  },
+  notesContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    backgroundColor: '#f3f4f6',
+    padding: 8,
+    borderRadius: 8,
+  },
+  notesText: {
+    fontSize: 13,
+    color: '#4b5563',
+    marginLeft: 8,
+    flex: 1,
   },
   levelCard: {
     backgroundColor: 'white',
@@ -407,4 +453,43 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6b7280',
   },
-}); 
+  fab: {
+    position: 'absolute',
+    bottom: 40,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#3b82f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  errorText: {
+    textAlign: 'center',
+    marginTop: 20,
+    fontSize: 16,
+    color: 'red',
+  },
+  noExamsText: {
+    textAlign: 'center',
+    marginTop: 20,
+    fontSize: 16,
+    color: '#6b7280',
+  },
+  examActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  actionButton: {
+    padding: 4,
+    marginLeft: 8,
+  },
+});

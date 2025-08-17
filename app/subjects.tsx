@@ -5,7 +5,7 @@ import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity
 import { supabase } from './supabaseClient';
 
 export default function SubjectsScreen() {
-  const { educationalLevel } = useLocalSearchParams();
+  const { educationalLevel, educationalLevelName } = useLocalSearchParams();
   const [subjects, setSubjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,8 +87,12 @@ export default function SubjectsScreen() {
   const handleSubjectPress = (subjectName: string) => {
     router.push({
       pathname: '/notes-list',
-      params: { educationalLevel, subject: subjectName },
-    } as any);
+      params: { 
+        educationalLevel: educationalLevel as string,
+        subject: subjectName,
+        educationalLevelName: educationalLevelName as string,
+      },
+    });
   };
 
   return (
