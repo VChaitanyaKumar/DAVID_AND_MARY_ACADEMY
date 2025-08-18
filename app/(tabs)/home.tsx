@@ -1,7 +1,7 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import React from 'react';
+import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function HomeScreen() {
   const handleTimetablePress = () => {
@@ -75,6 +75,11 @@ export default function HomeScreen() {
             <Text style={[styles.cardTitle, styles.attendanceText]}>Class Attendance</Text>
             <Text style={[styles.cardSubtitle, styles.attendanceSubtext]}>Mark & view attendance</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity style={[styles.dashboardCard, styles.studentsDirectoryCard]} onPress={() => router.push('/class-directory' as any)}>
+            <Ionicons name="people" size={32} color="#ef4444" />
+            <Text style={[styles.cardTitle, styles.studentsDirectoryText]}>Students Directory</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Quick Links Section */}
@@ -102,7 +107,7 @@ export default function HomeScreen() {
           <TouchableOpacity style={styles.quickLinkItem}>
             <Ionicons name="people" size={24} color="#8b5cf6" />
             <View style={styles.quickLinkContent}>
-              <Text style={styles.quickLinkTitle}>Class Directory</Text>
+              <Text style={styles.quickLinkTitle}>Student Directory</Text>
               <Text style={styles.quickLinkSubtitle}>View classmates</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
@@ -249,6 +254,10 @@ const styles = StyleSheet.create({
   },
   attendanceText: { color: '#16a34a' },
   attendanceSubtext: { color: '#16a34a' },
+  studentsDirectoryCard: {
+    backgroundColor: '#fee2e2',
+  },
+  studentsDirectoryText: { color: '#b91c1c' },
   quickLinksSection: {
     marginTop: 10,
     marginBottom: 20,

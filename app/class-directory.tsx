@@ -3,125 +3,126 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-const initialClasses = [
+const educationalLevels = [
   {
-    id: 1,
-    educationalLevel: 'Play Group',
-    subject: 'Story Time',
-    day: 'Monday',
-    startTime: '09:00',
-    endTime: '09:30',
-    teacherName: 'Ms. Smith',
-    color: '#3b82f6',
+    name: 'Play Group',
+    icon: 'school' as const,
+    color: '#f9b949',
+    backgroundColor: '#fff8eb',
+    subtitle: 'No tasks',
   },
   {
-    id: 2,
-    educationalLevel: 'Pre KG',
-    subject: 'Mathematics',
-    day: 'Tuesday',
-    startTime: '10:00',
-    endTime: '10:45',
-    teacherName: 'Mr. Kumar',
-    color: '#22c55e',
+    name: 'Pre KG',
+    icon: 'school' as const,
+    color: '#4a89f3',
+    backgroundColor: '#eaf2ff',
+    subtitle: 'No tasks',
   },
   {
-    id: 3,
-    educationalLevel: 'Junior KG',
-    subject: 'Art & Craft',
-    day: 'Wednesday',
-    startTime: '11:00',
-    endTime: '11:45',
-    teacherName: '',
-    color: '#f97316',
+    name: 'Junior KG',
+    icon: 'school' as const,
+    color: '#34c759',
+    backgroundColor: '#eafff2',
+    subtitle: 'No tasks',
   },
   {
-    id: 4,
-    educationalLevel: 'Senior KG',
-    subject: 'Music',
-    day: 'Thursday',
-    startTime: '12:00',
-    endTime: '12:45',
-    teacherName: 'Ms. Lee',
-    color: '#8b5cf6',
+    name: 'Senior KG',
+    icon: 'school' as const,
+    color: '#af52de',
+    backgroundColor: '#f6eaff',
+    subtitle: 'No tasks',
   },
 ];
 
-interface ClassItem {
-  id: number;
-  educationalLevel: string;
-  subject: string;
-  day: string;
-  startTime: string;
-  endTime: string;
-  teacherName: string;
-  color: string;
-}
-
 export default function ClassDirectoryScreen() {
-  const [classes, setClasses] = useState<ClassItem[]>(initialClasses);
-
-  const handleEdit = (cls: ClassItem) => {
-    router.push({ pathname: '/edit-class', params: { classId: cls.id } });
-  };
-
-  const handleDelete = (cls: ClassItem) => {
-    Alert.alert(
-      'Delete Class',
-      `Are you sure you want to delete ${cls.subject} (${cls.educationalLevel})?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => setClasses(prev => prev.filter(c => c.id !== cls.id)) },
-      ]
-    );
+  const handleLevelPress = (levelName: string) => {
+    router.push({ 
+      pathname: '/student-list',
+      params: { level: levelName },
+    });
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Class Directory</Text>
+      <View style={styles.headerContainer}>
+        <TouchableOpacity onPress={() => router.push('/(tabs)/home')} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#1e3a8a" />
+        </TouchableOpacity>
+        <Text style={styles.header}>Student Directory</Text>
+        <View style={styles.headerRight} />
+      </View>
       <FlatList
-        data={classes}
-        keyExtractor={item => item.id.toString()}
+        data={educationalLevels}
+        keyExtractor={(item) => item.name}
         renderItem={({ item }) => (
-          <View style={[styles.classCard, { borderLeftColor: item.color }]}> 
-            <View style={styles.classInfo}>
-              <Text style={styles.level}>{item.educationalLevel}</Text>
-              <Text style={styles.subject}>{item.subject}</Text>
-              <Text style={styles.time}>{item.day} • {item.startTime} - {item.endTime}</Text>
-              <Text style={styles.teacher}>Teacher: {item.teacherName}</Text>
+          <TouchableOpacity style={styles.levelCard} onPress={() => handleLevelPress(item.name)}>
+            <View style={[styles.iconContainer, { backgroundColor: item.backgroundColor }]}>
+              <Ionicons name={item.icon} size={24} color={item.color} />
             </View>
-            <View style={styles.actions}>
-              <TouchableOpacity onPress={() => handleEdit(item)}>
-                <Ionicons name="pencil" size={22} color="#4f46e5" />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleDelete(item)}>
-                <Ionicons name="trash" size={22} color="#ef4444" />
-              </TouchableOpacity>
+            <View style={styles.levelInfo}>
+              <Text style={styles.levelName}>{item.name}</Text>
+              <Text style={styles.levelSubtitle}>{item.subtitle}</Text>
             </View>
-          </View>
+            <Ionicons name="chevron-forward" size={22} color="#d1d5db" />
+          </TouchableOpacity>
         )}
-        ListEmptyComponent={<Text style={styles.emptyText}>No classes found.</Text>}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: 'white', padding: 16 },
-  header: { fontSize: 22, fontWeight: 'bold', marginBottom: 16, textAlign: 'center', color: '#1e3a8a' },
-  classCard: {
+  container: { flex: 1, backgroundColor: '#f8f9fa', padding: 16 },
+  headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f9fafb',
-    borderRadius: 12,
-    marginBottom: 12,
-    padding: 16,
-    borderLeftWidth: 6,
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    backgroundColor: '#f8f9fa',
   },
-  classInfo: { flex: 1 },
-  level: { fontWeight: 'bold', color: '#374151' },
-  subject: { fontSize: 16, color: '#1e3a8a', marginVertical: 2 },
-  time: { color: '#6b7280' },
-  teacher: { color: '#22c55e', marginTop: 2 },
-  actions: { flexDirection: 'row', gap: 16 },
-  emptyText: { textAlign: 'center', color: '#9ca3af', marginTop: 40 },
+  backButton: {
+    padding: 8,
+  },
+  header: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#1e3a8a',
+  },
+  headerRight: {
+    width: 40,
+  },
+  levelCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  levelInfo: {
+    flex: 1,
+  },
+  levelName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  levelSubtitle: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginTop: 2,
+  },
 }); 
