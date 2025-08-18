@@ -10,12 +10,6 @@ const NAVY = '#001F54';
 const GREEN = '#16a34a';
 const RED = '#dc2626';
 
-const SUBJECTS = [
-  'Basic of Geometry Class',
-  'English Language',
-  'Science',
-  'Mathematics',
-];
 
 type Student = {
   roll: number;
@@ -48,8 +42,21 @@ export default function StudentAttendance() {
   const { savedAttendanceBySubject, setSavedAttendanceBySubject } = useContext(AttendanceContext);
   const [date, setDate] = useState(new Date());
   const [showDate, setShowDate] = useState(false);
-  const [selectedSubject, setSelectedSubject] = useState(SUBJECTS[0]);
+  const [subjects, setSubjects] = useState([
+    'Basic of Geometry Class',
+    'English Language',
+    'Science',
+    'Mathematics',
+  ]);
+  const [selectedSubject, setSelectedSubject] = useState(subjects[0]);
   const [subjectDropdown, setSubjectDropdown] = useState(false);
+  const [showAddSubjectModal, setShowAddSubjectModal] = useState(false);
+  const [newSubjectName, setNewSubjectName] = useState('');
+  const [showEditSubjectModal, setShowEditSubjectModal] = useState(false);
+  const [editingSubjectName, setEditingSubjectName] = useState('');
+  const [originalSubjectName, setOriginalSubjectName] = useState('');
+  const [showDeleteSubjectModal, setShowDeleteSubjectModal] = useState(false);
+  const [subjectToDelete, setSubjectToDelete] = useState('');
   const [attendance, setAttendance] = useState<AttendanceRecord[]>(
     MOCK_STUDENTS.map((s) => ({ ...s, status: null }))
   );
@@ -60,6 +67,67 @@ export default function StudentAttendance() {
   const [showEditStudentModal, setShowEditStudentModal] = useState(false);
   const [editingStudent, setEditingStudent] = useState<AttendanceRecord | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleAddSubject = () => {
+    if (newSubjectName.trim() === '') {
+      Alert.alert('Error', 'Please enter a subject name.');
+      return;
+    }
+    if (subjects.includes(newSubjectName.trim())) {
+      Alert.alert('Error', 'This subject already exists.');
+      return;
+    }
+    const updatedSubjects = [...subjects, newSubjectName.trim()];
+    setSubjects(updatedSubjects);
+    setSelectedSubject(newSubjectName.trim());
+    setNewSubjectName('');
+    setShowAddSubjectModal(false);
+  };
+
+  const handleOpenEditSubjectModal = (subject: string) => {
+    setOriginalSubjectName(subject);
+    setEditingSubjectName(subject);
+    setShowEditSubjectModal(true);
+  };
+
+  const handleUpdateSubject = () => {
+    if (editingSubjectName.trim() === '') {
+      Alert.alert('Error', 'Subject name cannot be empty.');
+      return;
+    }
+    if (subjects.includes(editingSubjectName.trim()) && editingSubjectName.trim() !== originalSubjectName) {
+      Alert.alert('Error', 'This subject already exists.');
+      return;
+    }
+
+    const updatedSubjects = subjects.map(s => s === originalSubjectName ? editingSubjectName.trim() : s);
+    setSubjects(updatedSubjects);
+
+    if (selectedSubject === originalSubjectName) {
+      setSelectedSubject(editingSubjectName.trim());
+    }
+
+    setShowEditSubjectModal(false);
+    setEditingSubjectName('');
+    setOriginalSubjectName('');
+  };
+
+  const handleDeleteSubject = (subject: string) => {
+    setSubjectToDelete(subject);
+    setShowDeleteSubjectModal(true);
+  };
+
+  const confirmDeleteSubject = () => {
+    const updatedSubjects = subjects.filter(s => s !== subjectToDelete);
+    setSubjects(updatedSubjects);
+
+    if (selectedSubject === subjectToDelete) {
+      setSelectedSubject(updatedSubjects.length > 0 ? updatedSubjects[0] : '');
+    }
+
+    setShowDeleteSubjectModal(false);
+    setSubjectToDelete('');
+  };
 
   const presentCount = attendance.filter((s) => s.status === 'present').length;
   const absentCount = attendance.filter((s) => s.status === 'absent').length;
@@ -252,6 +320,9 @@ export default function StudentAttendance() {
           <View style={styles.section}>
             <View style={styles.subjectHeaderContainer}>
               <Text style={styles.sectionLabel}>Subject</Text>
+              <TouchableOpacity onPress={() => setShowAddSubjectModal(true)} style={styles.addSubjectBtn}>
+                <Ionicons name="add-circle" size={28} color={NAVY} />
+              </TouchableOpacity>
             </View>
             <TouchableOpacity style={styles.dropdown} onPress={() => setSubjectDropdown(!subjectDropdown)} activeOpacity={0.7}>
               <Text style={styles.subjectDropdownText}>{selectedSubject}</Text>
@@ -259,17 +330,26 @@ export default function StudentAttendance() {
             </TouchableOpacity>
             {subjectDropdown && (
               <View style={styles.subjectDropdownList}>
-                {SUBJECTS.map((subj) => (
-                  <TouchableOpacity
-                    key={subj}
-                    style={styles.subjectDropdownItem}
-                    onPress={() => {
-                      setSelectedSubject(subj);
-                      setSubjectDropdown(false);
-                    }}
-                  >
-                    <Text style={styles.subjectDropdownItemText}>{subj}</Text>
-                  </TouchableOpacity>
+                {subjects.map((subj) => (
+                  <View key={subj} style={styles.subjectDropdownRow}>
+                    <TouchableOpacity
+                      style={styles.subjectDropdownItem}
+                      onPress={() => {
+                        setSelectedSubject(subj);
+                        setSubjectDropdown(false);
+                      }}
+                    >
+                      <Text style={styles.subjectDropdownItemText}>{subj}</Text>
+                    </TouchableOpacity>
+                    <View style={styles.subjectActions}>
+                      <TouchableOpacity onPress={() => handleOpenEditSubjectModal(subj)} style={styles.subjectActionBtn}>
+                        <Ionicons name="pencil-outline" size={20} color="#4b5563" />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleDeleteSubject(subj)} style={styles.subjectActionBtn}>
+                        <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
                 ))}
               </View>
             )}
@@ -278,7 +358,7 @@ export default function StudentAttendance() {
         {/* Student Details Header */}
         <View style={styles.studentDetailsHeader}>
           <Text style={styles.studentDetailsLabel}>Student Details</Text>
-          <TouchableOpacity style={styles.addStudentBtn} onPress={() => setShowAddStudentModal(true)}>
+          <TouchableOpacity style={styles.addStudentIconBtn} onPress={() => setShowAddStudentModal(true)}>
             <Ionicons name="add-circle" size={28} color={NAVY} />
           </TouchableOpacity>
         </View>
@@ -341,6 +421,107 @@ export default function StudentAttendance() {
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Add Subject Modal */}
+      <Modal
+        visible={showAddSubjectModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowAddSubjectModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Add New Subject</Text>
+            <TextInput
+              style={styles.input}
+              value={newSubjectName}
+              onChangeText={setNewSubjectName}
+              placeholder="Enter subject name"
+              placeholderTextColor="#999"
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowAddSubjectModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.addButton]}
+                onPress={handleAddSubject}
+              >
+                <Text style={styles.addButtonText}>Add Subject</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Subject Modal */}
+      <Modal
+        visible={showEditSubjectModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowEditSubjectModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Edit Subject</Text>
+            <TextInput
+              style={styles.input}
+              value={editingSubjectName}
+              onChangeText={setEditingSubjectName}
+              placeholder="Enter subject name"
+              placeholderTextColor="#999"
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowEditSubjectModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.addButton]}
+                onPress={handleUpdateSubject}
+              >
+                <Text style={styles.addButtonText}>Update Subject</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete Subject Confirmation Modal */}
+      <Modal
+        visible={showDeleteSubjectModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowDeleteSubjectModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Delete Subject</Text>
+            <Text style={{ textAlign: 'center', marginBottom: 20, fontSize: 16, color: '#333' }}>
+              Are you sure you want to delete the subject "{subjectToDelete}"?
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowDeleteSubjectModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: RED }]}
+                onPress={confirmDeleteSubject}
+              >
+                <Text style={styles.addButtonText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Edit Student Modal */}
       <Modal
@@ -539,6 +720,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
+  addSubjectBtn: {
+    padding: 4,
+  },
   dropdown: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -564,9 +748,22 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
   },
-  subjectDropdownItem: {
-    paddingVertical: 10,
+  subjectDropdownRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 14,
+  },
+  subjectDropdownItem: {
+    flex: 1,
+    paddingVertical: 12,
+  },
+  subjectActions: {
+    flexDirection: 'row',
+  },
+  subjectActionBtn: {
+    padding: 6,
+    marginLeft: 8,
   },
   subjectDropdownItemText: {
     color: NAVY,
@@ -588,7 +785,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 18,
   },
-  addStudentBtn: {
+  addStudentIconBtn: {
     padding: 4,
   },
   listHeaderRow: {
