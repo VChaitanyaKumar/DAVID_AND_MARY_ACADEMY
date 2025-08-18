@@ -233,7 +233,7 @@ export default function MarkAttendance() {
         </View>
         {/* Calendar and Subject Selection */}
         <View style={styles.calendarSection}>
-          <Text style={styles.calendarLabel}>Date</Text>
+          <Text style={styles.sectionLabel}>Date</Text>
           <TouchableOpacity style={styles.calendarBtn} onPress={() => setShowDate(true)}>
             <Ionicons name="calendar-outline" size={18} color={NAVY} style={{ marginRight: 6 }} />
             <Text style={styles.calendarBtnText}>{formatDate(date)}</Text>
