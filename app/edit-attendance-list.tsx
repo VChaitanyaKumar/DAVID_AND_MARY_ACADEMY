@@ -1,15 +1,54 @@
-import React, { useContext } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { AttendanceContext } from './attendance-context';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { supabase } from './supabaseClient';
 
 const NAVY = '#001F54';
 
+interface AttendanceRecord {
+  date: string;
+  educational_level: string;
+  subject: string;
+}
+
 export default function EditAttendanceList() {
   const router = useRouter();
-  const { savedAttendanceBySubject } = useContext(AttendanceContext);
-  const subjects = Object.keys(savedAttendanceBySubject);
+  const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchRecords = async () => {
+      const { data, error } = await supabase
+        .from('attendance')
+        .select('date, educational_level, subject')
+        .order('date', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching attendance records:', error);
+      } else {
+        // Deduplicate records
+        const uniqueRecords = data.reduce((acc: AttendanceRecord[], current) => {
+          if (!acc.some(item => item.date === current.date && item.educational_level === current.educational_level && item.subject === current.subject)) {
+            acc.push(current);
+          }
+          return acc;
+        }, []);
+        setRecords(uniqueRecords);
+      }
+      setLoading(false);
+    };
+
+    fetchRecords();
+  }, []);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={NAVY} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
@@ -25,16 +64,16 @@ export default function EditAttendanceList() {
           <Text style={styles.pageTitle}>Edit Attendance Records</Text>
         </View>
         <View style={styles.listSection}>
-          {subjects.length === 0 ? (
+          {records.length === 0 ? (
             <Text style={styles.emptyText}>No attendance records found.</Text>
           ) : (
-            subjects.map(subject => (
+            records.map((record, index) => (
               <TouchableOpacity
-                key={subject}
+                key={index}
                 style={styles.subjectBtn}
-                onPress={() => router.push({ pathname: '/edit-attendance', params: { subject } })}
+                onPress={() => router.push({ pathname: '/edit-attendance', params: { date: record.date, educational_level: record.educational_level, subject: record.subject } })}
               >
-                <Text style={styles.subjectBtnText}>{subject}</Text>
+                <Text style={styles.subjectBtnText}>{`${record.date} - ${record.educational_level} - ${record.subject}`}</Text>
               </TouchableOpacity>
             ))
           )}
@@ -86,4 +125,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 32,
   },
-}); 
+});

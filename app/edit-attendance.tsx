@@ -1,10 +1,9 @@
-import React, { useContext, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, SafeAreaView, ScrollView, Platform, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { useRouter } from 'expo-router';
-import { AttendanceContext } from './attendance-context';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { supabase } from './supabaseClient';
 
 const NAVY = '#001F54';
 const GREEN = '#16a34a';
@@ -19,36 +18,37 @@ const SUBJECTS = [
 
 export default function EditAttendance() {
   const router = useRouter();
-  const { savedAttendanceBySubject, setSavedAttendanceBySubject } = useContext(AttendanceContext);
-  const { subject } = useLocalSearchParams();
-  const attendanceRecord = subject && typeof subject === 'string' ? savedAttendanceBySubject[subject] : undefined;
-
-  const [date, setDate] = useState(attendanceRecord?.date || new Date());
+  const { date: recordDate, educational_level, subject } = useLocalSearchParams();
+  const [attendance, setAttendance] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [date, setDate] = useState(new Date(recordDate as string));
   const [showDate, setShowDate] = useState(false);
-  const [selectedSubject, setSelectedSubject] = useState(attendanceRecord?.selectedSubject || (typeof subject === 'string' ? subject : SUBJECTS[0]));
+  const [selectedSubject, setSelectedSubject] = useState(subject as string);
   const [subjectDropdown, setSubjectDropdown] = useState(false);
-  // Full student list
-  const ALL_STUDENTS = [
-    { roll: 1, name: 'Emma Johnson' },
-    { roll: 2, name: 'Liam Smith' },
-    { roll: 3, name: 'Sophia Davis' },
-    { roll: 4, name: 'Noah Wilson' },
-    { roll: 5, name: 'Ava Brown' },
-    { roll: 6, name: 'Oliver Taylor' },
-    { roll: 7, name: 'Lucas Lee' },
-    { roll: 8, name: 'Mia Kim' },
-  ];
 
-  // Merge saved statuses with all students
-  const initialAttendance = ALL_STUDENTS.map(student => {
-    const saved = attendanceRecord?.attendance?.find(s => s.roll === student.roll);
-    return {
-      ...student,
-      status: saved?.status ?? null,
+  useEffect(() => {
+    const fetchAttendance = async () => {
+      const { data, error } = await supabase
+        .from('attendance')
+        .select('*')
+        .eq('date', recordDate)
+        .eq('educational_level', educational_level)
+        .eq('subject', subject);
+
+      if (error) {
+        console.error('Error fetching attendance:', error);
+      } else {
+        setAttendance(data.map(item => ({
+          roll: item.student_roll,
+          name: item.student_name,
+          status: item.status,
+        })));
+      }
+      setLoading(false);
     };
-  });
 
-  const [attendance, setAttendance] = useState(initialAttendance);
+    fetchAttendance();
+  }, [recordDate, educational_level, subject]);
 
   const presentCount = attendance.filter((s) => s.status === 'present').length;
   const absentCount = attendance.filter((s) => s.status === 'absent').length;
@@ -61,21 +61,33 @@ export default function EditAttendance() {
     );
   };
 
-  const handleSave = () => {
-    if (typeof selectedSubject !== 'string') return;
-    setSavedAttendanceBySubject(prev => ({
-      ...prev,
-      [selectedSubject]: { date, selectedSubject, attendance },
-    }));
-    Alert.alert('Attendance Updated', 'Student attendance has been updated successfully.', [
-      { text: 'OK', onPress: () => router.back() }
-    ]);
+  const handleSave = async () => {
+    const updates = attendance.map(s =>
+      supabase
+        .from('attendance')
+        .update({ status: s.status })
+        .eq('date', recordDate)
+        .eq('educational_level', educational_level)
+        .eq('subject', subject)
+        .eq('student_roll', s.roll)
+    );
+
+    const results = await Promise.all(updates);
+    const hasError = results.some(res => res.error);
+
+    if (hasError) {
+      Alert.alert('Error', 'Failed to update attendance. Please try again.');
+    } else {
+      Alert.alert('Attendance Updated', 'Student attendance has been updated successfully.', [
+        { text: 'OK', onPress: () => router.back() }
+      ]);
+    }
   };
 
-  if (!attendanceRecord) {
+  if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ color: '#888', fontSize: 18 }}>No attendance record found for this subject.</Text>
+      <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={NAVY} />
       </SafeAreaView>
     );
   }
@@ -440,4 +452,4 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
-}); 
+});
